@@ -117,7 +117,6 @@ class dataClean(object):
         playing_stat['VTWinStreak5'] = playing_stat['VTFormPtsStr'].apply(self.get_5game_ws)
         playing_stat['VTLossStreak3'] = playing_stat['VTFormPtsStr'].apply(self.get_3game_ls)
         playing_stat['VTLossStreak5'] = playing_stat['VTFormPtsStr'].apply(self.get_5game_ls)
-
         return playing_stat
 
     # 计算主、客队积分差、近5场积分差、排名差

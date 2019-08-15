@@ -58,8 +58,8 @@ def union_save_database(db):
 
 def predict_match(league_model):
     loc = r"D:\qiutan_predict\prediction\\"
-    filename = loc + r"datasets\taday_matchs.csv"
-    taday_matchs = pd.read_csv(filename, encoding="gbk")
+    loadname = loc + r"datasets\taday_matchs.csv"
+    taday_matchs = pd.read_csv(loadname, encoding="gbk")
     match_info = taday_matchs[['league', 'hometeam', 'awayteam', 'bs_time']]
 
     predict = prediction()
@@ -71,7 +71,7 @@ def predict_match(league_model):
     y_pred = xgboost_model.predict(X_all)
     res = pd.DataFrame(y_pred, columns=['y_pred'])
     pred_res =pd.concat([match_info, res], axis=1)
-    nowtime = time.strftime('%Y%m%d%H', time.localtime())
+    nowtime = time.strftime('%Y%m%dH', time.localtime())
     pred_res.to_csv("./prediction/datasets/prediction{}.csv".format(nowtime), encoding = "gbk", index=None)
 
 

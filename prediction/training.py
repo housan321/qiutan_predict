@@ -105,8 +105,11 @@ data = pd.read_csv('./datasets/final_dataset/final_dataset(37).csv', encoding = 
 
 data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
            'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
-            'HM1','HM2','HM3','AM1','AM2','AM3',
-           'DiffLP'], 1, inplace=True)
+            'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP',
+           # 'Diff_oz_home_mean', 'Diff_oz_draw_mean', 'Diff_oz_away_mean',
+           # 'Diff_oz_home_std', 'Diff_oz_draw_std', 'Diff_oz_away_std',
+           # 'Diff_az_home_mean', 'Diff_az_size_mean', 'Diff_az_away_mean'
+           ], 1, inplace=True)
 
 
 
@@ -227,11 +230,11 @@ def preprocess_features(X):
     return output
 
 # X_part = X_all[['HM1','HM2','HM3','AM1','AM2','AM3','VM1','VM2','VM3','VM4','VM5',]]      # ,'VM1','VM2','VM3','VM4','VM5'
-X_part = X_all[['VM1','VM2','VM3','VM4','VM5']]      # ,'VM1','VM2','VM3','VM4','VM5'
+X_part = X_all[['VM1','VM2','VM3','VM4','VM5','mean_idx','std_idx']]      # ,'VM1','VM2','VM3','VM4','VM5'
 X_part = preprocess_features(X_part)
 
 # X_all = X_all.drop(['HM1','HM2','HM3','AM1','AM2','AM3','VM1','VM2','VM3','VM4','VM5',],1)    # ,'VM1','VM2','VM3','VM4','VM5'
-X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5'],1)
+X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5','mean_idx','std_idx'],1)
 X_all = pd.concat([X_all, X_part], axis=1)
 
 print("Processed feature columns ({} total features):\n{}".format(len(X_all.columns), list(X_all.columns)))
