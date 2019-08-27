@@ -74,7 +74,8 @@ class dataClean(object):
     def load_data(self, filename):
         raw_data = pd.read_csv(filename, encoding = "gbk")
 
-        columns_req = [ 'lunci', 'FTR', 'FTRR', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HomeLP','AwayLP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
+        columns_req = [ 'lunci', 'FTR', 'FTRR', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HLP','ALP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
+                        'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws','HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
                         'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9']
         playing_stat = raw_data[columns_req]
@@ -123,8 +124,8 @@ class dataClean(object):
     def get_diff(self, playing_stat):
         playing_stat['DiffPts'] = playing_stat['HTP'] - playing_stat['ATP']
         playing_stat['DiffFormPts'] = playing_stat['HTFormPts'] - playing_stat['ATFormPts']
-        playing_stat['DiffLP'] = playing_stat['HomeLP'] - playing_stat['AwayLP']
-        playing_stat['DiffValue'] = playing_stat['az_value9'] - playing_stat['az_value0']
+        playing_stat['DiffLP'] = playing_stat['HLP'] - playing_stat['ALP']
+        playing_stat['Diff_AZ_Value'] = playing_stat['az_value9'] - playing_stat['az_value0']
 
         return playing_stat
 
@@ -135,6 +136,12 @@ class dataClean(object):
         playing_stat.lunci = playing_stat.lunci.astype(float)
         for col in cols:
             playing_stat[col] = playing_stat[col] / playing_stat.lunci
+
+        playing_stat['HHTGD'] = playing_stat['HHTGD'] / playing_stat['hh_nb_games']
+        playing_stat['AATGD'] = playing_stat['AATGD'] / playing_stat['aa_nb_games']
+        playing_stat['HHTP'] = playing_stat['HHTP'] / playing_stat['hh_nb_games']
+        playing_stat['AATP'] = playing_stat['AATP'] / playing_stat['aa_nb_games']
+        playing_stat['Diff_HA_Pts'] = playing_stat['HHTP'] - playing_stat['AATP']
 
         return playing_stat
 
@@ -195,25 +202,54 @@ class dataClean(object):
 
         return output
 
+    def get_rates(self, playing_stat):
+        playing_stat['h_win_rate'] = playing_stat['hh_nb_wins'] / playing_stat['hh_nb_games']
+        playing_stat['a_win_rate'] = (playing_stat['aa_nb_wins'] + playing_stat['aa_nb_draws']) / playing_stat['aa_nb_games']
+        playing_stat['diff_win_rate'] = playing_stat['h_win_rate'] - playing_stat['a_win_rate']
+
+        return playing_stat
+
+    def get_oz_odds_value(self, playing_stat):
+        temp_sum = 1/playing_stat['oz_home0_mean'] + 1/playing_stat['oz_draw0_mean'] + 1/playing_stat['oz_away0_mean']
+        oz_home0_prob = (1/playing_stat['oz_home0_mean']) / temp_sum
+        oz_draw0_prob = (1/playing_stat['oz_draw0_mean']) / temp_sum
+        oz_away0_prob = (1/playing_stat['oz_away0_mean']) / temp_sum
+        playing_stat['oz_odds_value0'] = (oz_home0_prob-oz_away0_prob) / oz_draw0_prob
+
+        temp_sum = 1/playing_stat['oz_home9_mean'] + 1/playing_stat['oz_draw9_mean'] + 1/playing_stat['oz_away9_mean']
+        oz_home9_prob = (1/playing_stat['oz_home9_mean']) / temp_sum
+        oz_draw9_prob = (1/playing_stat['oz_draw9_mean']) / temp_sum
+        oz_away9_prob = (1/playing_stat['oz_away9_mean']) / temp_sum
+        playing_stat['oz_odds_value9'] = (oz_home9_prob-oz_away9_prob) / oz_draw9_prob
+        playing_stat['Diff_OZ_Value'] = playing_stat['oz_odds_value9'] - playing_stat['oz_odds_value0']
+
+        return playing_stat
+
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 37
+    league = 4
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
     clean = dataClean()
     playing_stat = clean.load_data(loadfile)
+    # 移除前三周比赛并移除多余特征
+    playing_stat = playing_stat[playing_stat.lunci > 3]
+
     playing_stat = clean.add_form(playing_stat, 5)
     playing_stat = clean.get_3form_points(playing_stat)
     playing_stat = clean.get_win_loss_streak(playing_stat)
     playing_stat = clean.get_diff(playing_stat)
     playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
+    playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
     playing_stat = clean.scale_by_week(playing_stat)
     # playing_stat = clean.oz_odds_mean_index(playing_stat)
     # playing_stat = clean.oz_odds_std_index(playing_stat)
+    playing_stat = clean.get_rates(playing_stat)
+    playing_stat = clean.get_oz_odds_value(playing_stat)
 
-    # 移除前三周比赛并移除多余特征
-    playing_stat = playing_stat[playing_stat.lunci > 3]
-    playing_stat = playing_stat.drop(['lunci', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HomeLP', 'AwayLP', 'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
+
+    playing_stat = playing_stat.drop(['lunci', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP', 'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
+
                                       'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std',
                                       'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
                                       'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std'], axis=1)

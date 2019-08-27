@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re, time
+from datetime import timedelta, datetime
 import pandas as pd
 from qiutan.items import SaichengItem
 from qiutan.items import Team_DataItem
@@ -10,35 +11,34 @@ from qiutan.items import Member_Data_Old_Item
 from qiutan.items import Match_Score_New_Item
 from qiutan.items import Match_OZ_Odds_New_Item
 from qiutan.items import Match_AZ_Odds_New_Item
-from qiutan.db_sql import MySql
+
 
 class EcSpider(scrapy.Spider):
     name = 'predict'
     allowed_domains = ['zq.win007.com', 'bf.win007.com']
 
     leagueId = {'英超': '36', '西甲': '31', '意甲': '34', '德甲': '8', '法甲': '11',
-                '英冠': '37', '苏超': '29', '葡超': '23', '挪超': '22', '瑞典超': '26',
+                 '苏超': '29', '葡超': '23', '挪超': '22', '瑞典超': '26',  '荷甲': '16','俄超':'10',
+                '英冠': '37', '德乙':'9',
                 '中超': '60', '日职联': '25', '日职乙': '284', '韩K联': '15',
                 '美职业': '21', '巴西甲': '4'}
     subleagueId = {'英超': '', '西甲': '', '意甲': '', '德甲': '', '法甲': '',
-                   '英冠': '_87', '苏超': '', '葡超': '_1123', '挪超': '', '瑞典超': '_431',
+                   '苏超': '', '葡超': '_1123', '挪超': '', '瑞典超': '_431', '荷甲': '_98','俄超':'_591',
+                   '英冠': '_87','德乙':'_132',
                    '中超': '', '日职联': '_943', '日职乙': '_808', '韩K联': '_313',
                    '美职业': '_165', '巴西甲': ''}
 
     # 将不同年份url交给Scheduler
     def start_requests(self):
-        league = '英冠'
-        league_id = self.leagueId[league]
-        subleagueId = self.subleagueId[league]
-        re = time.strftime('%Y%m%d', time.localtime())  # 2019042509
-        # base_url = 'http://zq.win007.com/jsData/matchResult/{}/s{}{}.js?version={}'
-        base_url = 'http://www.win0168.com/football/Next_{}.htm'
-        date_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        hour = time.strftime('%H', time.localtime())
+        if hour <= '09':
+            yesterday = datetime.today() + timedelta(-1)
+            re = yesterday.strftime('%Y%m%d')
+        else:
+            re = time.strftime('%Y%m%d', time.localtime())  # 2019042509
 
-        req_base = scrapy.Request(base_url.format(re), callback=self.parse)
-        # req_base.meta['league'] = league
-        # req_base.meta['date'] = date
-        # req_base.meta['re'] = re
+        base_url = 'http://www.win0168.com/football/Next_{}.htm'
+        req_base = scrapy.Request(base_url.format(re), callback=self.my_parse)
         yield req_base
 
     def team_data_id(self, response):
@@ -52,13 +52,10 @@ class EcSpider(scrapy.Spider):
         return lis_all_team
 
     # 表2 全部轮次的数据表
-    def parse(self, response):
+    def my_parse(self, response):
         # 获取赛季名称
         season = '2019-2020'
-        # 获取球队id_队名列表
-        lis_all_team = self.team_data_id(response)
-        # 获取每年所有队伍数据 38轮
-        # ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
+
         ball_lunci_team = response.xpath("//table[@id='table_live']/tr")
         num = 0
         # 根据38轮遍历每一小轮
@@ -66,61 +63,61 @@ class EcSpider(scrapy.Spider):
             # 每小页数据
             item = SaichengItem()
             # # 每轮次的10条数据
-            # eve_turn_team = re.findall('\[\d{6}.*?\]', eve_turn)
             eve_turn = ball_lunci_team[n]
             eve_turn_team = eve_turn.xpath("./td")
-            for n in range(len(eve_turn_team)):
-                league = eve_turn_team[0].xpath("./font/text()").extract()[0]
-                bs_time = eve_turn_team[1].xpath("./text()").extract()[0]
-                hometeam = eve_turn_team[3].xpath("./text()").extract()[0]
-                awayteam = eve_turn_team[5].xpath("./text()").extract()[0]
-                id_str = eve_turn_team[7].xpath("./a/@onclick").extract()[0]
-                pattern = re.compile(r'[(](.*?)[)]', re.S)
-                bs_num_id = re.findall(pattern, id_str)[0]
-                # 只预测常见的轮赛
-                if league not in self.leagueId.keys(): continue
 
-                #1 拼接每个比赛详细分析 url http://zq.win007.com/analysis/851859cn.htm
-                url = 'http://zq.win007.com/analysis/{}cn.htm'.format(bs_num_id)
-                # url = 'http://zq.win007.com/analysis/404801cn.htm'
-                req = scrapy.Request(url, callback=self.bs_score, errback=self.bs_resquest_err)
-                req.meta['err_id'] = '001'
-                req.meta['league'] = league
-                req.meta['season'] = season
-                req.meta['bs_num_id'] = bs_num_id
-                req.meta['FTR'] = 'UNKNOWN'
-                req.meta['FTRR'] = 'UNKNOWN'
-                req.meta['hometeam'] = hometeam
-                req.meta['awayteam'] = awayteam
-                req.meta['bs_time'] = bs_time
-                yield req
+            league = eve_turn_team[0].xpath("./font/text()").extract()[0]
+            bs_time = eve_turn_team[1].xpath("./text()").extract()[0]
+            hometeam = eve_turn_team[3].xpath("./text()").extract()[0]
+            awayteam = eve_turn_team[5].xpath("./text()").extract()[0]
+            id_str = eve_turn_team[7].xpath("./a/@onclick").extract()[0]
+            pattern = re.compile(r'[(](.*?)[)]', re.S)
+            bs_num_id = re.findall(pattern, id_str)[0]
 
-                #2 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
-                # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
-                # if item['bs_time'] < '2014-05-12 0:00':
-                url = 'http://1x2d.win007.com/{}.js'.format(bs_num_id)
-                req = scrapy.Request(url, dont_filter=True, callback=self.bs_odds_oz, errback=self.bs_resquest_err)
-                req.meta['err_id'] = '002'
-                req.meta['league'] = league
-                req.meta['season'] = season
-                req.meta['bs_num_id'] = bs_num_id
-                req.meta['hometeam'] = hometeam
-                req.meta['awayteam'] = awayteam
-                yield req
+            # 只预测常见的轮赛
+            if league not in self.leagueId.keys(): continue
 
-                #3 拼接每个比赛亚盘赔率 url http://vip.win007.com/AsianOdds_n.aspx?id=987100
-                # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
-                # if item['bs_time'] < '2014-05-12 0:00':
-                url = 'http://vip.win007.com/AsianOdds_n.aspx?id={}'.format(bs_num_id)
-                # url = 'http://vip.win007.com/AsianOdds_n.aspx?id=851594'
-                req = scrapy.Request(url, dont_filter=True, callback=self.bs_odds_az, errback=self.bs_resquest_err)
-                req.meta['err_id'] = '003'
-                req.meta['league'] = league
-                req.meta['season'] = season
-                req.meta['bs_num_id'] = bs_num_id
-                req.meta['hometeam'] = hometeam
-                req.meta['awayteam'] = awayteam
-                yield req
+            #1 拼接每个比赛详细分析 url http://zq.win007.com/analysis/851859cn.htm
+            url = 'http://zq.win007.com/analysis/{}cn.htm'.format(bs_num_id)
+            # url = 'http://zq.win007.com/analysis/404801cn.htm'
+            req = scrapy.Request(url, callback=self.bs_score, errback=self.bs_resquest_err)
+            req.meta['err_id'] = '001'
+            req.meta['league'] = league
+            req.meta['season'] = season
+            req.meta['bs_num_id'] = bs_num_id
+            req.meta['FTR'] = 'UNKNOWN'
+            req.meta['FTRR'] = 'UNKNOWN'
+            req.meta['hometeam'] = hometeam
+            req.meta['awayteam'] = awayteam
+            req.meta['bs_time'] = bs_time
+            yield req
+
+            #2 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
+            # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
+            # if item['bs_time'] < '2014-05-12 0:00':
+            url = 'http://1x2d.win007.com/{}.js'.format(bs_num_id)
+            req = scrapy.Request(url, dont_filter=True, callback=self.bs_odds_oz, errback=self.bs_resquest_err)
+            req.meta['err_id'] = '002'
+            req.meta['league'] = league
+            req.meta['season'] = season
+            req.meta['bs_num_id'] = bs_num_id
+            req.meta['hometeam'] = hometeam
+            req.meta['awayteam'] = awayteam
+            yield req
+
+            #3 拼接每个比赛亚盘赔率 url http://vip.win007.com/AsianOdds_n.aspx?id=987100
+            # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
+            # if item['bs_time'] < '2014-05-12 0:00':
+            url = 'http://vip.win007.com/AsianOdds_n.aspx?id={}'.format(bs_num_id)
+            # url = 'http://vip.win007.com/AsianOdds_n.aspx?id=851594'
+            req = scrapy.Request(url, dont_filter=True, callback=self.bs_odds_az, errback=self.bs_resquest_err)
+            req.meta['err_id'] = '003'
+            req.meta['league'] = league
+            req.meta['season'] = season
+            req.meta['bs_num_id'] = bs_num_id
+            req.meta['hometeam'] = hometeam
+            req.meta['awayteam'] = awayteam
+            yield req
 
 
         # team_url = 'http://zq.win007.com/jsData/teamInfo/teamDetail/tdl{}.js?version={}'
@@ -190,28 +187,49 @@ class EcSpider(scrapy.Spider):
         item['league'] = league
         item['season'] = season
         item['bs_num_id'] = bs_num_id
-        item['lunci'] = int(home_table[12])+1
+        item['lunci'] = int(home_table[12])
         item['hometeam'] = hometeam
         item['awayteam'] = awayteam
         item['bs_time'] = bs_time
         item['FTR'] = FTR
         item['FTRR'] = FTRR
-        item['h_win'] = home_table[13]
-        item['h_draw'] = home_table[14]
-        item['h_lost'] = home_table[15]
+
+        item['h_nb_wins'] = home_table[13]
+        item['h_nb_draws'] = home_table[14]
+        item['h_nb_losts'] = home_table[15]
         item['HTGS'] = home_table[16]
         item['HTGC'] = home_table[17]
         item['HTGD'] = home_table[18]
         item['HTP'] = home_table[19]
-        item['HomeLP'] = home_table[20]
-        item['a_win'] = away_table[13]
-        item['a_draw'] = away_table[14]
-        item['a_lost'] = away_table[15]
+        item['HLP'] = home_table[20]
+        item['hh_nb_games'] = home_table[22]
+        item['hh_nb_wins'] = home_table[23]
+        item['hh_nb_draws'] = home_table[24]
+        item['hh_nb_losts'] = home_table[25]
+        item['HHTGS'] = home_table[26]
+        item['HHTGC'] = home_table[27]
+        item['HHTGD'] = home_table[28]
+        item['HHTP'] = home_table[29]
+        item['HHLP'] = home_table[30]
+
+        item['a_nb_wins'] = away_table[13]
+        item['a_nb_draws'] = away_table[14]
+        item['a_nb_losts'] = away_table[15]
         item['ATGS'] = away_table[16]
         item['ATGC'] = away_table[17]
         item['ATGD'] = away_table[18]
         item['ATP'] = away_table[19]
-        item['AwayLP'] = away_table[20]
+        item['ALP'] = away_table[20]
+        item['aa_nb_games'] = away_table[32]
+        item['aa_nb_wins'] = away_table[33]
+        item['aa_nb_draws'] = away_table[34]
+        item['aa_nb_losts'] = away_table[35]
+        item['AATGS'] = away_table[36]
+        item['AATGC'] = away_table[37]
+        item['AATGD'] = away_table[38]
+        item['AATP'] = away_table[39]
+        item['AALP'] = away_table[40]
+
         item['VTFormPtsStr'] = VTFormPtsStr
         item['HTFormPtsStr'] = HTFormPtsStr
         item['ATFormPtsStr'] = ATFormPtsStr

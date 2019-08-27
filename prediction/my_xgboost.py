@@ -73,6 +73,7 @@
 
 #data preprocessing
 import pandas as pd
+import numpy as np
 #produces a prediction model in the form of an ensemble of weak prediction models, typically decision tree
 import xgboost as xgb
 # the outcome (dependent variable) has only a limited number of possible values.
@@ -93,25 +94,26 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # In[2]:
-modelname = r'./model/xgboost_joblib(英冠).dat'
+modelname = r'./model/xgboost_joblib(巴西甲).dat'
 
 # Read data and drop redundant column.
-data = pd.read_csv('./datasets/final_dataset/final_dataset(37).csv', encoding = "gbk")
+data = pd.read_csv('./datasets/final_dataset/final_dataset(4).csv', encoding = "gbk")
 
-
-# 'HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
-#             'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
-#             'VM1', 'VM2', 'VM3', 'VM4', 'VM5', 'VTFormPts', 'az_value0', 'az_value9', 'DiffValue', 'DiffLP'
+data.dropna(inplace=True)
 
 data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
-           'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
+            'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
             'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP',
-           # 'Diff_oz_home_mean', 'Diff_oz_draw_mean', 'Diff_oz_away_mean',
-           # 'Diff_oz_home_std', 'Diff_oz_draw_std', 'Diff_oz_away_std',
-           # 'Diff_az_home_mean', 'Diff_az_size_mean', 'Diff_az_away_mean'
+           'hh_nb_games','hh_nb_wins','hh_nb_draws','aa_nb_games','aa_nb_wins','aa_nb_draws',
+           'az_value0', 'az_value9', 'Diff_AZ_Value',
            ], 1, inplace=True)
 
+# data.drop(['oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'oz_odds_value0', 'az_value0',
+#            'Diff_OZ_Value','Diff_AZ_Value'],  1, inplace=True)
 
+# data.drop(['HTGD', 'ATGD', 'DiffPts', 'DiffFormPts',
+#            'HTP', 'ATP', 'HHTGD', 'AATGD','HHTP', 'AATP',
+#            'VTFormPts', 'Diff_HA_Pts', 'a_win_rate','h_win_rate'], 1, inplace=True)
 
 # Preview data.
 display(data.head())
@@ -229,13 +231,12 @@ def preprocess_features(X):
     
     return output
 
-# X_part = X_all[['HM1','HM2','HM3','AM1','AM2','AM3','VM1','VM2','VM3','VM4','VM5',]]      # ,'VM1','VM2','VM3','VM4','VM5'
-X_part = X_all[['VM1','VM2','VM3','VM4','VM5','mean_idx','std_idx']]      # ,'VM1','VM2','VM3','VM4','VM5'
-X_part = preprocess_features(X_part)
 
-# X_all = X_all.drop(['HM1','HM2','HM3','AM1','AM2','AM3','VM1','VM2','VM3','VM4','VM5',],1)    # ,'VM1','VM2','VM3','VM4','VM5'
-X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5','mean_idx','std_idx'],1)
-X_all = pd.concat([X_all, X_part], axis=1)
+# X_part = X_all[['VM1','VM2','VM3','VM4','VM5']]      # ,'VM1','VM2','VM3','VM4','VM5'
+# X_part = preprocess_features(X_part)
+
+X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5'],1)
+# X_all = pd.concat([X_all, X_part], axis=1)
 
 print("Processed feature columns ({} total features):\n{}".format(len(X_all.columns), list(X_all.columns)))
 
@@ -248,16 +249,25 @@ print("\nFeature values:")
 display(X_all.head())
 
 
-# In[8]:
+
+# from sklearn.preprocessing import StandardScaler
+# standardizer = StandardScaler()
+# X_all = standardizer.fit_transform(X_all)
 
 
-from sklearn.model_selection import train_test_split
+
 
 # Shuffle and split the dataset into training and testing set.
-X_train, X_test, y_train, y_test = train_test_split(X_all, y_all, 
-                                                    test_size = 0.33,
-                                                    random_state = 18,
-                                                    stratify = y_all)
+# from sklearn.model_selection import train_test_split
+# X_train, X_test, y_train, y_test = train_test_split(X_all, y_all,
+#                                                     test_size = 0.3,
+#                                                     random_state = 200,
+#                                                     stratify = y_all)
+
+X_train = X_all[:2300]
+X_test = X_all[2300:]
+y_train = y_all[:2300]
+y_test = y_all[2300:]
 
 
 # ## Training and Evaluating Models
@@ -274,7 +284,9 @@ from time import time
 #the number of positive results that should have been returned. The F1 score can be 
 #interpreted as a weighted average of the precision and recall, where an F1 score 
 #reaches its best value at 1 and worst at 0.
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
+
+
 
 def train_classifier(clf, X_train, y_train):
     ''' Fits a classifier to the training data. '''
@@ -320,28 +332,6 @@ def train_predict(clf, X_train, y_train, X_test, y_test):
     print("F1 score and accuracy score for test set: {:.4f} , {:.4f}.".format(f1 , acc))
 
 
-# Logistic Regression
-# 
-# ![alt text](https://image.slidesharecdn.com/logisticregression-predictingthechancesofcoronaryheartdisease-091203130638-phpapp01/95/logistic-regression-predicting-the-chances-of-coronary-heart-disease-2-728.jpg?cb=1259845609"Logo Title Text 1")
-# 
-# ![alt text](https://i.ytimg.com/vi/HdB-z0TJRK4/maxresdefault.jpg "Logo Title Text 1")
-# 
-# Support Vector Machine
-# 
-# ![alt text](https://image.slidesharecdn.com/supportvectormachine-121112135318-phpapp01/95/support-vector-machine-3-638.jpg?cb=1352729591 "Logo Title Text 1")
-# ![alt text](http://docs.opencv.org/2.4/_images/optimal-hyperplane.png "Logo Title Text 1")
-# 
-# XGBoost
-# 
-# ![alt text](https://raw.githubusercontent.com/dmlc/web-data/master/xgboost/model/cart.png "Logo Title Text 1")
-# 
-# ![alt text](https://raw.githubusercontent.com/dmlc/web-data/master/xgboost/model/twocart.png "Logo Title Text 1")
-# 
-# ![alt text](https://image.slidesharecdn.com/0782ee51-165d-4e34-a09c-2b7f8dacff01-150403064822-conversion-gate01/95/feature-importance-analysis-with-xgboost-in-tax-audit-17-638.jpg?cb=1450092771 "Logo Title Text 1")
-# 
-# ![alt text](https://image.slidesharecdn.com/0782ee51-165d-4e34-a09c-2b7f8dacff01-150403064822-conversion-gate01/95/feature-importance-analysis-with-xgboost-in-tax-audit-18-638.jpg?cb=1450092771 "Logo Title Text 1")
-
-# In[10]:
 
 
 # Initialize the three models (XGBoost is initialized later)
@@ -372,12 +362,15 @@ print('')
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import make_scorer
 
+from sklearn.feature_selection import SelectFromModel
+from xgboost import plot_importance
+from matplotlib import pyplot
 
 # TODO: Create the parameters list you wish to tune
-parameters = { 'learning_rate' : [0.1],
-               'n_estimators' : [33],
-               'max_depth': [3],
-               'min_child_weight': [2],
+parameters = { 'learning_rate' : [0.01],
+               'n_estimators' : [200],
+               'max_depth': [1],
+               'min_child_weight': [3],
                'gamma':[0.4],
                'subsample' : [0.8],
                'colsample_bytree' : [0.8],
@@ -404,6 +397,7 @@ grid_obj = grid_obj.fit(X_train,y_train)
 clf = grid_obj.best_estimator_
 print(clf)
 
+
 # Report the final F1 score for training and testing after parameter tuning
 f1, acc = predict_labels(clf, X_train, y_train)
 print("F1 score and accuracy score for training set: {:.4f} , {:.4f}.".format(f1 , acc))
@@ -411,13 +405,51 @@ print("F1 score and accuracy score for training set: {:.4f} , {:.4f}.".format(f1
 f1, acc = predict_labels(clf, X_test, y_test)
 print("F1 score and accuracy score for test set: {:.4f} , {:.4f}.".format(f1 , acc))
 
+
+pyplot.bar(range(len(clf.feature_importances_)), clf.feature_importances_)
+pyplot.show()
+# plot feature importance
+plot_importance(clf)
+pyplot.show()
+
+
+
+
+
+# Fit model using each importance as a threshold
+thresholds = np.sort(clf.feature_importances_)
+for thresh in thresholds:
+	# select features using threshold
+	selection = SelectFromModel(clf, threshold=thresh, prefit=True)
+	select_X_train = selection.transform(X_train)
+	# train model
+	selection_model = xgb.XGBClassifier()
+	selection_model.fit(select_X_train, y_train)
+	# eval model
+	select_X_test = selection.transform(X_test)
+	y_pred = selection_model.predict(select_X_test)
+	predictions = [value for value in y_pred]
+	accuracy = accuracy_score(y_test, predictions)
+	print("Thresh=%.3f, n=%d, Accuracy: %.2f%%" % (thresh, select_X_train.shape[1], accuracy*100.0))
+
+
+
+
+
+
+# y_prob = clf.predict_proba(X_test)[:,1]
+# y_pred1 = np.where(y_prob > 0.5, 'NH', 'H')
+
+
+
 # save model to file
 joblib.dump(clf, modelname)
 
 xgboost_model = joblib.load(modelname)
-y_pred = xgboost_model.predict(X_all)
-acc = sum(y_all == y_pred) / float(len(y_pred))
+y_pred = xgboost_model.predict(X_test)
+acc = sum(y_test == y_pred) / float(len(y_pred))
 print('acc = {}'.format(acc))
+
 
 #prediction
 
