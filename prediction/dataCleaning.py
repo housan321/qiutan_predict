@@ -53,7 +53,7 @@ class dataClean(object):
             sum += self.get_points(letter)
         return sum
 
-    # 对赛的积分差
+    # 主、客对赛的积分差
     def get_vs_points(self, result):
         if result == 'W':
             return 3
@@ -73,8 +73,7 @@ class dataClean(object):
     #读入数据
     def load_data(self, filename):
         raw_data = pd.read_csv(filename, encoding = "gbk")
-
-        columns_req = [ 'lunci', 'FTR', 'FTRR', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HLP','ALP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
+        columns_req = [ 'season','hometeam','awayteam', 'lunci', 'FTR', 'FTRR', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HLP','ALP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
                         'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws','HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
                         'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9']
@@ -202,6 +201,7 @@ class dataClean(object):
 
         return output
 
+    #获取主、客队的胜率，客队不败当作胜利
     def get_rates(self, playing_stat):
         playing_stat['h_win_rate'] = playing_stat['hh_nb_wins'] / playing_stat['hh_nb_games']
         playing_stat['a_win_rate'] = (playing_stat['aa_nb_wins'] + playing_stat['aa_nb_draws']) / playing_stat['aa_nb_games']
@@ -209,6 +209,7 @@ class dataClean(object):
 
         return playing_stat
 
+    #由欧赔中的初赔和终赔计算出一个特征值
     def get_oz_odds_value(self, playing_stat):
         temp_sum = 1/playing_stat['oz_home0_mean'] + 1/playing_stat['oz_draw0_mean'] + 1/playing_stat['oz_away0_mean']
         oz_home0_prob = (1/playing_stat['oz_home0_mean']) / temp_sum
@@ -225,6 +226,27 @@ class dataClean(object):
 
         return playing_stat
 
+    #获取球队实力参数
+    def get_strength_coefficient(self, playing_stat):
+        all_data = playing_stat[['season', 'lunci','hometeam','awayteam','FTR']]
+
+        # season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        season_lis = ['{}'.format(i) for i in range(2011, 2020)]  #赛季格式 2018
+        for season in season_lis:
+            data =  all_data[all_data.season==int(season)]
+            data = data.sort_values(by='lunci', ascending=True)
+            hometeam = data['hometeam']
+            playteam = hometeam.drop_duplicates(keep='first')
+            playteam = playteam.to_dict()
+            original_coff = dict([val, 1] for key, val in playteam.items())  #每队原始实力参数赋于1
+
+
+            kk = 0
+
+
+        return playing_stat
+
+
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     league = 4
@@ -232,6 +254,9 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
     clean = dataClean()
     playing_stat = clean.load_data(loadfile)
+
+    clean.get_strength_coefficient(playing_stat)
+
     # 移除前三周比赛并移除多余特征
     playing_stat = playing_stat[playing_stat.lunci > 3]
 
@@ -239,8 +264,6 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     playing_stat = clean.get_3form_points(playing_stat)
     playing_stat = clean.get_win_loss_streak(playing_stat)
     playing_stat = clean.get_diff(playing_stat)
-    playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
-    playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
     playing_stat = clean.scale_by_week(playing_stat)
     # playing_stat = clean.oz_odds_mean_index(playing_stat)
     # playing_stat = clean.oz_odds_std_index(playing_stat)
@@ -248,8 +271,13 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     playing_stat = clean.get_oz_odds_value(playing_stat)
 
 
-    playing_stat = playing_stat.drop(['lunci', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP', 'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
 
+
+    playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
+    playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
+
+    playing_stat = playing_stat.drop(['season', 'lunci', 'hometeam','awayteam', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP',
+                                     'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
                                       'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std',
                                       'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
                                       'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std'], axis=1)
