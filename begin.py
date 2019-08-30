@@ -83,7 +83,7 @@ def union_save_database(db):
     db.save_to_csv(save_sql)
 
 
-def predict_match(league_model):
+def predict_match():
     loc = r"D:\qiutan_predict\prediction\\"
     loadfile = loc + r"datasets\taday_matchs.csv"
     pred_res = pd.DataFrame()
@@ -114,8 +114,8 @@ def predict_match(league_model):
 if __name__=='__main__':#在win系统下必须要满足这个if条件
     db = MySql('localhost', 'root', '123456', 'qiutan', 3306)
 
-    download = True
-    # download = False
+    # download = True
+    download = False
 
     if download:
         #1 先清除旧数据
@@ -133,7 +133,7 @@ if __name__=='__main__':#在win系统下必须要满足这个if条件
         union_save_database(db)
 
     #4 预测
-    predict_match('西甲')
+    predict_match()
     print('完成预测')
 
 

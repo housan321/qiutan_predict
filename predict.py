@@ -25,7 +25,7 @@ class prediction(object):
         playing_stat = clean.get_rates(playing_stat)
         playing_stat = clean.get_oz_odds_value(playing_stat)
         playing_stat = playing_stat.drop(
-            ['lunci', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP', 'HTFormPts', 'ATFormPts', 'VTFormPtsStr',
+            ['season', 'lunci', 'hometeam','awayteam', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP', 'HTFormPts', 'ATFormPts', 'VTFormPtsStr',
              'HTFormPtsStr', 'ATFormPtsStr', 'HM4', 'HM5', 'AM4', 'AM5',
              'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std',
              'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
