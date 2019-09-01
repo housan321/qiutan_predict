@@ -94,18 +94,18 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # In[2]:
-modelname = r'./model/xgboost_joblib(巴西甲).dat'
+modelname = r'./model/xgboost_joblib(西甲).dat'
 
 # Read data and drop redundant column.
-data = pd.read_csv('./datasets/final_dataset/final_dataset(4).csv', encoding = "gbk")
+data = pd.read_csv('./datasets/final_dataset/final_dataset(31).csv', encoding = "gbk")
 
 data.dropna(inplace=True)
 
 data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
             'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
-            'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP',
+            'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP','diff_win_rate',
            'hh_nb_games','hh_nb_wins','hh_nb_draws','aa_nb_games','aa_nb_wins','aa_nb_draws',
-           'az_value0', 'az_value9', 'Diff_AZ_Value',
+           'az_value9','oz_odds_value9',
            ], 1, inplace=True)
 
 # data.drop(['oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'oz_odds_value0', 'az_value0',
@@ -264,10 +264,10 @@ display(X_all.head())
 #                                                     random_state = 200,
 #                                                     stratify = y_all)
 
-X_train = X_all[:2300]
-X_test = X_all[2300:]
-y_train = y_all[:2300]
-y_test = y_all[2300:]
+X_train = X_all[:2400]
+X_test = X_all[2400:]
+y_train = y_all[:2400]
+y_test = y_all[2400:]
 
 
 # ## Training and Evaluating Models
@@ -367,9 +367,9 @@ from xgboost import plot_importance
 from matplotlib import pyplot
 
 # TODO: Create the parameters list you wish to tune
-parameters = { 'learning_rate' : [0.01],
-               'n_estimators' : [200],
-               'max_depth': [1],
+parameters = { 'learning_rate' : [0.1],
+               'n_estimators' : [55],
+               'max_depth': [3],
                'min_child_weight': [3],
                'gamma':[0.4],
                'subsample' : [0.8],
