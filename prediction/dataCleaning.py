@@ -229,28 +229,30 @@ class dataClean(object):
     #获取球队实力参数
     def get_strength_coefficient(self, playing_stat):
         factor = 1/7
-        all_data = playing_stat[['season', 'lunci','hometeam','awayteam','FTR']]
+        all_coff = pd.DataFrame()
+        playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
 
-        # season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
-        season_lis = ['{}'.format(i) for i in range(2011, 2020)]  #赛季格式 2018
+        all_data = playing_stat[['season', 'lunci','hometeam','awayteam','FTR']]
+        season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        # season_lis = ['{}'.format(i) for i in range(2011, 2020)]  #赛季格式 2018
         for season in season_lis:
-            data =  all_data[all_data.season==int(season)]
-            data = data.sort_values(by='lunci', ascending=True)
-            data['coff_home'] = -1
-            data['coff_away'] = -1
+            data =  all_data[all_data.season == season]
+            data['coff_home'] = 0
+            data['coff_away'] = 0
             hometeam = data['hometeam']
             playteam = hometeam.drop_duplicates(keep='first')
             playteam = playteam.to_dict()
             coff = dict([val, 1] for key, val in playteam.items())  #每队原始实力参数赋于1
+            data = data.reset_index(drop=True)
             for n in range(len(data)):
-                match = data.ix[n]
+                match = data.iloc[n]
                 if match['FTR'] == 'H':
                     coff_home = coff[match['hometeam']] + factor * coff[match['awayteam']]
                     coff_away = coff[match['awayteam']] - factor * coff[match['awayteam']]
                 elif match['FTR'] == 'D':
                     diff = coff[match['hometeam']] - coff[match['awayteam']]
                     coff_home = coff[match['hometeam']] - factor * diff
-                    coff_away = coff[match['awayteam']] - factor * diff
+                    coff_away = coff[match['awayteam']] + factor * diff
                 elif  match['FTR'] == 'A':
                     coff_home = coff[match['hometeam']] - factor * coff[match['hometeam']]
                     coff_away = coff[match['awayteam']] + factor * coff[match['hometeam']]
@@ -260,24 +262,23 @@ class dataClean(object):
                 coff[match['hometeam']] = coff_home
                 coff[match['awayteam']] = coff_away
 
-                kkk = 0
+            all_coff = all_coff.append(data[['coff_home','coff_away']], ignore_index=True)
 
-
-            kk = 0
-
+        playing_stat['coff_home'] = all_coff['coff_home']
+        playing_stat['coff_away'] = all_coff['coff_away']
 
         return playing_stat
 
 
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 4
+    league = 11
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
     clean = dataClean()
     playing_stat = clean.load_data(loadfile)
 
-    clean.get_strength_coefficient(playing_stat)
+    playing_stat = clean.get_strength_coefficient(playing_stat)
 
     # 移除前三周比赛并移除多余特征
     playing_stat = playing_stat[playing_stat.lunci > 3]
