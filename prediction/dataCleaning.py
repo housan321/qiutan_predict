@@ -226,19 +226,17 @@ class dataClean(object):
 
         return playing_stat
 
-    #获取球队实力参数
+    #获取球队实力参数，参照：Beating the Bookies: Predicting the Outcome of Soccer Games
     def get_strength_coefficient(self, playing_stat):
-        factor = 1/7
-        all_coff = pd.DataFrame()
+        factor = 1/7  #实力更新因子
+        new_playing_stat = pd.DataFrame()
         playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
-
-        all_data = playing_stat[['season', 'lunci','hometeam','awayteam','FTR']]
+        playing_stat['coff_home'] = 0
+        playing_stat['coff_away'] = 0
         season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
         # season_lis = ['{}'.format(i) for i in range(2011, 2020)]  #赛季格式 2018
         for season in season_lis:
-            data =  all_data[all_data.season == season]
-            data['coff_home'] = 0
-            data['coff_away'] = 0
+            data =  playing_stat[playing_stat.season == season]
             hometeam = data['hometeam']
             playteam = hometeam.drop_duplicates(keep='first')
             playteam = playteam.to_dict()
@@ -262,12 +260,9 @@ class dataClean(object):
                 coff[match['hometeam']] = coff_home
                 coff[match['awayteam']] = coff_away
 
-            all_coff = all_coff.append(data[['coff_home','coff_away']], ignore_index=True)
+            new_playing_stat = new_playing_stat.append(data, ignore_index=True)
 
-        playing_stat['coff_home'] = all_coff['coff_home']
-        playing_stat['coff_away'] = all_coff['coff_away']
-
-        return playing_stat
+        return new_playing_stat
 
 
 
