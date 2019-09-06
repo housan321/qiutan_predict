@@ -28,6 +28,13 @@ class EcSpider(scrapy.Spider):
                    '中超': '', '日职联': '_943', '日职乙': '_808', '韩K联': '_313',
                    '美职业': '_165', '巴西甲': ''}
 
+    league_season = {'英超': '2019-2020', '西甲': '2019-2020', '意甲': '2019-2020', '德甲': '2019-2020', '法甲': '2019-2020',
+                    '苏超': '2019-2020', '葡超': '2019-2020', '挪超': '2019', '瑞典超': '2019',  '荷甲': '2019-2020','俄超':'2019-2020',
+                    '英冠': '2019-2020', '德乙':'2019-2020',
+                    '中超': '2019', '日职联': '2019', '日职乙': '2019', '韩K联': '2019',
+                    '美职业': '2019', '巴西甲': '2019'}
+
+
     # 将不同年份url交给Scheduler
     def start_requests(self):
         hour = time.strftime('%H', time.localtime())
@@ -53,11 +60,22 @@ class EcSpider(scrapy.Spider):
 
     # 表2 全部轮次的数据表
     def my_parse(self, response):
-        # 获取赛季名称
-        season = '2019-2020'
+        #1. 下载每个轮赛已结束的比赛的结果
+        re = time.strftime('%Y%m%d%H', time.localtime())  # 2019042509
+        base_url = 'http://zq.win007.com/jsData/matchResult/{}/s{}{}.js?version={}'
+        for league in self.leagueId:
+            league_id = self.leagueId[league]
+            subleague_id = self.subleagueId[league]
+            season = self.league_season[league]
+            req_base = scrapy.Request(base_url.format(season, league_id, subleague_id, re), callback=self.get_past_match)
+            req_base.meta['err_id'] = '004'
+            req_base.meta['league'] = league
+            req_base.meta['season'] = season
+            yield req_base
 
+        #2.下载当天的比赛
+        season = '2019-2020'
         ball_lunci_team = response.xpath("//table[@id='table_live']/tr")
-        num = 0
         # 根据38轮遍历每一小轮
         for n in range(1, len(ball_lunci_team)):
             # 每小页数据
@@ -65,7 +83,6 @@ class EcSpider(scrapy.Spider):
             # # 每轮次的10条数据
             eve_turn = ball_lunci_team[n]
             eve_turn_team = eve_turn.xpath("./td")
-
             league = eve_turn_team[0].xpath("./font/text()").extract()[0]
             bs_time = eve_turn_team[1].xpath("./text()").extract()[0]
             hometeam = eve_turn_team[3].xpath("./text()").extract()[0]
@@ -77,7 +94,7 @@ class EcSpider(scrapy.Spider):
             # 只预测常见的轮赛
             if league not in self.leagueId.keys(): continue
 
-            #1 拼接每个比赛详细分析 url http://zq.win007.com/analysis/851859cn.htm
+            #3 拼接每个比赛详细分析 url http://zq.win007.com/analysis/851859cn.htm
             url = 'http://zq.win007.com/analysis/{}cn.htm'.format(bs_num_id)
             # url = 'http://zq.win007.com/analysis/404801cn.htm'
             req = scrapy.Request(url, callback=self.bs_score, errback=self.bs_resquest_err)
@@ -92,7 +109,7 @@ class EcSpider(scrapy.Spider):
             req.meta['bs_time'] = bs_time
             yield req
 
-            #2 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
+            #4 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
             # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
             # if item['bs_time'] < '2014-05-12 0:00':
             url = 'http://1x2d.win007.com/{}.js'.format(bs_num_id)
@@ -105,7 +122,7 @@ class EcSpider(scrapy.Spider):
             req.meta['awayteam'] = awayteam
             yield req
 
-            #3 拼接每个比赛亚盘赔率 url http://vip.win007.com/AsianOdds_n.aspx?id=987100
+            #5 拼接每个比赛亚盘赔率 url http://vip.win007.com/AsianOdds_n.aspx?id=987100
             # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
             # if item['bs_time'] < '2014-05-12 0:00':
             url = 'http://vip.win007.com/AsianOdds_n.aspx?id={}'.format(bs_num_id)
@@ -120,17 +137,6 @@ class EcSpider(scrapy.Spider):
             yield req
 
 
-        # team_url = 'http://zq.win007.com/jsData/teamInfo/teamDetail/tdl{}.js?version={}'
-        # # 根据 偶数索引 取 球队id
-        # for i in range(len(lis_all_team)):
-        #     if i % 2 == 0:
-        #         url = team_url.format(lis_all_team[i], response.meta['re'])
-        #         req = scrapy.Request(url, callback=self.team_data)
-        #         # 加上防盗链获取接口
-        #         req.meta['Referer'] = 'http://zq.win007.com/cn/team/Summary/{}.html'.format(lis_all_team[i])
-        #         yield req
-
-
     # 请求失败的处理
     def bs_resquest_err(self, response):
         bs_num_id = response.meta['bs_num_id']
@@ -141,6 +147,74 @@ class EcSpider(scrapy.Spider):
             print('match' + bs_num_id + ' resquest oz odds page failure！')
         elif err_id == '003':
             print('match' + bs_num_id + ' resquest az odds page failure！')
+        elif err_id == '004':
+            print('match' + bs_num_id + ' resquest past matchs page failure！')
+
+
+    #获取已结束的比赛的结果
+    def get_past_match(self, response):
+        # 获取轮赛名称
+        league = response.meta['league']
+        # 获取赛季名称
+        season = response.meta['season']
+        # 获取球队id_队名列表
+        lis_all_team = self.team_data_id(response)
+        # 获取每年所有队伍数据 38轮
+        ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
+        num = 0
+        # 根据38轮遍历每一小轮
+        for eve_turn in ball_lunci_team:
+            num = num+1
+            # 每小页数据
+            item = SaichengItem()
+            # 每轮次的10条数据
+            eve_turn_team = re.findall('\[\d{6}.*?\]', eve_turn)
+            for eve_turn_team_data in eve_turn_team:
+                # 将每行数据转化为list类型 索引取值
+                # [851543,36,-1,'2013-08-17 19:45',25,58,'1-0','1-0','7',
+                # '13',1.25,0.5,'2.5/3','1',1,1,1,1,0,0,'']
+                lis = eve_turn_team_data.strip('[|]').replace('\'', '').split(',')
+                # 根据获取的战队id去之前的列表找索引位置
+                index_num_h = lis_all_team.index(lis[4])
+                index_num_g = lis_all_team.index(lis[5])
+                res = re.split("-", lis[6])
+                if len(res) != 2: continue  #比赛取消等结果
+                if res[0] > res[1]:
+                    FTR = 'H'
+                elif res[0] == res[1]:
+                    FTR = 'D'
+                else:
+                    FTR = 'A'
+
+                w_goal = float(res[0]) - float(res[1]) #净胜球
+                if lis[10]: #有数值的情况
+                    r_goal = float(lis[10])                #让球
+                else: r_goal = 0
+                if (w_goal-r_goal) > 0: FTRR = 'H'
+                elif (w_goal-r_goal) < 0: FTRR = 'A'
+                else: FTRR = 'D'
+
+                item['league'] = league
+                item['season'] = season
+                item['lunci'] = num
+                item['FTR'] = FTR
+                item['FTRR'] = FTRR
+                bs_num_id = lis[0]
+                item['bs_time'] = lis[3]  # 2014-05-04 23:00 <class 'str'>
+                item['bs_num_id'] = bs_num_id
+                item['host_team'] = lis_all_team[index_num_h + 1]
+                item['h_team_id'] = lis[4]
+                item['res_score'] = lis[6]
+                item['guest_team'] = lis_all_team[index_num_g + 1]
+                item['g_team_id'] = lis[5]
+                item['all_rang'] = self.rangqiu(lis[10])
+                item['half_rang'] = self.rangqiu(lis[11])
+                item['sizes_balls_a'] = lis[12]
+                item['sizes_balls_h'] = lis[13]
+                item['half_score'] = lis[7]
+                yield item
+
+
 
     # 主、客队进失球，积分、排名、近5场赛果等: 新版
     def bs_score(self, response):
@@ -152,7 +226,6 @@ class EcSpider(scrapy.Spider):
         FTR = response.meta['FTR']
         FTRR = response.meta['FTRR']
         bs_time = response.meta['bs_time']
-
         print(season, bs_num_id, response.status)
 
         # 实例化Item
@@ -170,15 +243,6 @@ class EcSpider(scrapy.Spider):
         if not home_table: #如果没有数据，是因为table的位置不对应
             home_table = tables[table_num+1].xpath('./tr/td/text()').extract()
             away_table = tables[table_num+2].xpath('./tr/td/text()').extract()
-        # elif season < '2012-2013':
-        # # elif season < '2012':
-        #     tables = response.xpath("//*[text()='联赛积分排名']/../../../../..//table")
-        #     home_table = tables[1].xpath('./tr/td/text()').extract()
-        #     away_table = tables[2].xpath('./tr/td/text()').extract()
-
-        # tables = response.xpath("//*[text()='联赛积分排名']/../../../../..//table")
-        # home_table = tables[0].xpath('./tr/td/text()').extract()
-        # away_table = tables[1].xpath('./tr/td/text()').extract()
 
         VTFormPtsStr = self.get_VS_result(response, 'v_data.*?\[(\[.*?\])\];')
         HTFormPtsStr = self.get_VS_result(response, 'h_data.*?\[(\[.*?\])\];')
@@ -235,14 +299,12 @@ class EcSpider(scrapy.Spider):
         item['ATFormPtsStr'] = ATFormPtsStr
         yield item
 
-
-    # 本场比赛赔率数据: 新版
+    # 本场比赛欧洲赔率数据
     def bs_odds_oz(self, response):
         company_id = ['281', '115', '82', '173', '81', '90', '71', '104',
                       '16', '18', '976', '255', '545', '80', '474', '499']
         oz_odds = pd.DataFrame(columns=['home0', 'draw0', 'away0', 'home9', 'draw9', 'away9'])
         odds = pd.Series(index=['home0', 'draw0', 'away0', 'home9', 'draw9', 'away9'])
-        list_id = 0
 
         league = response.meta['league']
         season = response.meta['season']
@@ -266,7 +328,7 @@ class EcSpider(scrapy.Spider):
                 odds[0] = res[3]
                 odds[1] = res[4]
                 odds[2] = res[5]
-                if res[10]: # 即时盘有数据
+                if res[10]: #即时盘有数据
                     odds[3] = res[10]
                     odds[4] = res[11]
                     odds[5] = res[12]
@@ -275,7 +337,6 @@ class EcSpider(scrapy.Spider):
                     odds[4] = res[4]
                     odds[5] = res[5]
                 oz_odds = oz_odds.append(odds.T, ignore_index=True)
-
         odds_mean = oz_odds.mean()
         odds_std = oz_odds.std()
 
@@ -291,27 +352,21 @@ class EcSpider(scrapy.Spider):
         item['oz_home9_std'] = float(odds_std[3])
         item['oz_draw9_std'] = float(odds_std[4])
         item['oz_away9_std'] = float(odds_std[5])
-
         yield item
 
-
-    # 本场比赛赔率数据: 新版
+    # 本场比赛亚洲赔率数据: 新版
     def bs_odds_az(self, response):
         league = response.meta['league']
         season = response.meta['season']
         bs_num_id = response.meta['bs_num_id']
-
         # 实例化Item
         item = Match_AZ_Odds_New_Item()
-
         az_odds = pd.DataFrame(columns=['az_home0', 'az_size0', 'az_away0', 'az_home9', 'az_size9', 'az_away9'])
         odds = pd.Series(index=['az_home0', 'az_size0', 'az_away0', 'az_home9', 'az_size9', 'az_away9'])
         az_value = pd.Series(index=['value0', 'value9'])
-
         item['league'] = league
         item['season'] = season
         item['bs_num_id'] = bs_num_id
-
         td_list = response.xpath("//table[@id=\"odds\"]/tr/td")
         flag = False
         for index, td in enumerate(td_list):
@@ -336,7 +391,6 @@ class EcSpider(scrapy.Spider):
                 if not flag:
                     az_value[0], az_value[1] = self.convert_az_odds(odds) #只取一家赔率
                     flag = True
-
         odds_mean = az_odds.mean()
         odds_std = az_odds.std()
 
@@ -354,7 +408,6 @@ class EcSpider(scrapy.Spider):
         item['az_away9_std'] = float(odds_std[5])
         item['az_value0'] = float(az_value[0])
         item['az_value9'] = float(az_value[1])
-
         yield item
 
     # 把亚盘转换成一个数值，代表强弱的表现
@@ -394,7 +447,6 @@ class EcSpider(scrapy.Spider):
                 TFormPtsStr = TFormPtsStr + 'D'
             else:
                 TFormPtsStr = TFormPtsStr + 'W'
-
         if len(TFormPtsStr) >= 5:
             TFormPtsStr = TFormPtsStr[:5]
         else:
