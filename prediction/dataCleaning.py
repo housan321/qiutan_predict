@@ -71,14 +71,13 @@ class dataClean(object):
 
 
     #读入数据
-    def load_data(self, filename):
-        raw_data = pd.read_csv(filename, encoding = "gbk")
+    def select_data(self, playing_stat):
         columns_req = [ 'season','hometeam','awayteam', 'lunci', 'FTR', 'FTRR', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HLP','ALP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
                         'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws','HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
-                        'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9']
-        playing_stat = raw_data[columns_req]
-
+                        'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9',
+                        'coff_home', 'coff_away']
+        playing_stat = playing_stat[columns_req]
         return playing_stat
 
     #整理近5场赛果
@@ -226,15 +225,17 @@ class dataClean(object):
 
         return playing_stat
 
-    #获取球队实力参数，参照：Beating the Bookies: Predicting the Outcome of Soccer Games
+    #获取球队实力参数，参照论文：“Beating the Bookies: Predicting the Outcome of Soccer Games”
     def get_strength_coefficient(self, playing_stat):
-        factor = 1/7  #实力更新因子
+        factor = 1/5  #实力更新因子
         new_playing_stat = pd.DataFrame()
         playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
+        playing_stat.season = playing_stat.season.astype('str')
         playing_stat['coff_home'] = 0
         playing_stat['coff_away'] = 0
-        season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
-        # season_lis = ['{}'.format(i) for i in range(2011, 2020)]  #赛季格式 2018
+
+        # season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        season_lis = ['{}'.format(i) for i in range(2011, 2019)]  #赛季格式 2018
         for season in season_lis:
             data =  playing_stat[playing_stat.season == season]
             hometeam = data['hometeam']
@@ -243,6 +244,8 @@ class dataClean(object):
             coff = dict([val, 1] for key, val in playteam.items())  #每队原始实力参数赋于1
             data = data.reset_index(drop=True)
             for n in range(len(data)):
+                data.loc[n, 'coff_home'] = coff[data.loc[n, 'hometeam']]
+                data.loc[n, 'coff_away'] = coff[data.loc[n, 'awayteam']]
                 match = data.iloc[n]
                 if match['FTR'] == 'H':
                     coff_home = coff[match['hometeam']] + factor * coff[match['awayteam']]
@@ -255,8 +258,8 @@ class dataClean(object):
                     coff_home = coff[match['hometeam']] - factor * coff[match['hometeam']]
                     coff_away = coff[match['awayteam']] + factor * coff[match['hometeam']]
 
-                data.loc[n, 'coff_home'] = coff_home
-                data.loc[n, 'coff_away'] = coff_away
+                # data.loc[n, 'coff_home'] = coff_home
+                # data.loc[n, 'coff_away'] = coff_away
                 coff[match['hometeam']] = coff_home
                 coff[match['awayteam']] = coff_away
 
@@ -267,13 +270,17 @@ class dataClean(object):
 
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 11
+    league = 284
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
-    clean = dataClean()
-    playing_stat = clean.load_data(loadfile)
+    raw_data = pd.read_csv(loadfile, encoding="gbk")
 
-    playing_stat = clean.get_strength_coefficient(playing_stat)
+    clean = dataClean()
+    playing_stat = clean.get_strength_coefficient(raw_data)
+
+    playing_stat = clean.select_data(playing_stat)
+
+
 
     # 移除前三周比赛并移除多余特征
     playing_stat = playing_stat[playing_stat.lunci > 3]

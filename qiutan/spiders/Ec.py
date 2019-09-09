@@ -38,36 +38,28 @@ class EcSpider(scrapy.Spider):
     # 将不同年份url交给Scheduler
     def start_requests(self):
         hour = time.strftime('%H', time.localtime())
-        if hour <= '09':
+        if hour <= '09':  #9点前下载前一天的比赛
             yesterday = datetime.today() + timedelta(-1)
-            re = yesterday.strftime('%Y%m%d')
-        else:
-            re = time.strftime('%Y%m%d', time.localtime())  # 2019042509
+            time_stamp = yesterday.strftime('%Y%m%d')
+        else:  #9点后下载当天的比赛
+            time_stamp = time.strftime('%Y%m%d', time.localtime())  # 2019042509
 
         base_url = 'http://www.win0168.com/football/Next_{}.htm'
-        req_base = scrapy.Request(base_url.format(re), callback=self.my_parse)
+        req_base = scrapy.Request(base_url.format(time_stamp), callback=self.my_parse)
         yield req_base
 
-    def team_data_id(self, response):
-        # 获取每个队伍的id和队名
-        pat = re.compile("\[(\d+),'(.*?)'")
-        ballteam = pat.findall(response.text)[1:]
-        lis_all_team = []
-        for item in ballteam:
-            lis_all_team.append(item[0])
-            lis_all_team.append(item[-1])
-        return lis_all_team
+
 
     # 表2 全部轮次的数据表
     def my_parse(self, response):
         #1. 下载每个轮赛已结束的比赛的结果
-        re = time.strftime('%Y%m%d%H', time.localtime())  # 2019042509
+        time_stamp = time.strftime('%Y%m%d%H', time.localtime())  # 2019042509
         base_url = 'http://zq.win007.com/jsData/matchResult/{}/s{}{}.js?version={}'
         for league in self.leagueId:
             league_id = self.leagueId[league]
             subleague_id = self.subleagueId[league]
             season = self.league_season[league]
-            req_base = scrapy.Request(base_url.format(season, league_id, subleague_id, re), callback=self.get_past_match)
+            req_base = scrapy.Request(base_url.format(season, league_id, subleague_id, time_stamp), callback=self.get_past_match)
             req_base.meta['err_id'] = '004'
             req_base.meta['league'] = league
             req_base.meta['season'] = season
@@ -136,6 +128,15 @@ class EcSpider(scrapy.Spider):
             req.meta['awayteam'] = awayteam
             yield req
 
+    def team_data_id(self, response):
+        # 获取每个队伍的id和队名
+        pat = re.compile("\[(\d+),'(.*?)'")
+        ballteam = pat.findall(response.text)[1:]
+        lis_all_team = []
+        for item in ballteam:
+            lis_all_team.append(item[0])
+            lis_all_team.append(item[-1])
+        return lis_all_team
 
     # 请求失败的处理
     def bs_resquest_err(self, response):
@@ -160,7 +161,8 @@ class EcSpider(scrapy.Spider):
         # 获取球队id_队名列表
         lis_all_team = self.team_data_id(response)
         # 获取每年所有队伍数据 38轮
-        ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
+        # ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
+        ball_lunci_team = re.findall('jh\[\"R_\d{1,2}\"\] = \[(\[\d{3,}.*?\])\];', response.text)
         num = 0
         # 根据38轮遍历每一小轮
         for eve_turn in ball_lunci_team:
@@ -176,7 +178,7 @@ class EcSpider(scrapy.Spider):
                 lis = eve_turn_team_data.strip('[|]').replace('\'', '').split(',')
                 # 根据获取的战队id去之前的列表找索引位置
                 index_num_h = lis_all_team.index(lis[4])
-                index_num_g = lis_all_team.index(lis[5])
+                index_num_a = lis_all_team.index(lis[5])
                 res = re.split("-", lis[6])
                 if len(res) != 2: continue  #比赛取消等结果
                 if res[0] > res[1]:
@@ -202,11 +204,11 @@ class EcSpider(scrapy.Spider):
                 bs_num_id = lis[0]
                 item['bs_time'] = lis[3]  # 2014-05-04 23:00 <class 'str'>
                 item['bs_num_id'] = bs_num_id
-                item['host_team'] = lis_all_team[index_num_h + 1]
+                item['hometeam'] = lis_all_team[index_num_h + 1]
                 item['h_team_id'] = lis[4]
                 item['res_score'] = lis[6]
-                item['guest_team'] = lis_all_team[index_num_g + 1]
-                item['g_team_id'] = lis[5]
+                item['awayteam'] = lis_all_team[index_num_a + 1]
+                item['a_team_id'] = lis[5]
                 item['all_rang'] = self.rangqiu(lis[10])
                 item['half_rang'] = self.rangqiu(lis[11])
                 item['sizes_balls_a'] = lis[12]

@@ -14,9 +14,9 @@ class prediction(object):
     row_l = {'VM1': 'L', 'VM2': 'L', 'VM3': 'L','VM4': 'L', 'VM5': 'L'}
 
 
-    def extract_feature(self, filename):
+    def extract_feature(self, playing_stat):
         clean = dataClean()
-        playing_stat = clean.load_data(filename)
+        playing_stat = clean.select_data(playing_stat)
         playing_stat = clean.add_form(playing_stat, 5)
         playing_stat = clean.get_3form_points(playing_stat)
         playing_stat = clean.get_win_loss_streak(playing_stat)
@@ -65,7 +65,7 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     match_info = taday_matchs[['league', 'hometeam', 'awayteam', 'bs_time']]
 
     predict = prediction()
-    X_all = predict.extract_feature(filename)
+    X_all = predict.extract_feature(taday_matchs)
 
     # load xgboost model
     xgboost_model = joblib.load('./prediction/model/xgboost_joblib(all).dat')

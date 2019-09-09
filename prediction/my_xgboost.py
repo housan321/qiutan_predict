@@ -93,11 +93,18 @@ from sklearn.externals import joblib
 import warnings
 warnings.filterwarnings("ignore")
 
-# In[2]:
-modelname = r'./model/xgboost_joblib(西甲).dat'
 
+leagueId = {'英超': '36', '西甲': '31', '意甲': '34', '德甲': '8', '法甲': '11',
+            '英冠': '37', '苏超': '29', '葡超': '23', '挪超': '22', '瑞典超': '26',
+            '中超': '60', '日职联': '25', '日职乙': '284', '韩K联': '15',
+            '美职业': '21', '巴西甲': '4'}
+
+
+league = '日职乙'
+# In[2]:
+modelname = r'./model/xgboost_joblib({}).dat'.format(league)
 # Read data and drop redundant column.
-data = pd.read_csv('./datasets/final_dataset/final_dataset(31).csv', encoding = "gbk")
+data = pd.read_csv(r'./datasets/final_dataset/final_dataset({}).csv'.format(leagueId[league]), encoding = "gbk")
 
 data.dropna(inplace=True)
 
@@ -106,6 +113,9 @@ data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'AT
             'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP','diff_win_rate',
            'hh_nb_games','hh_nb_wins','hh_nb_draws','aa_nb_games','aa_nb_wins','aa_nb_draws',
            'az_value9','oz_odds_value9',
+
+           # 'oz_home9_std','oz_draw9_std','oz_away9_std','az_value0', 'Diff_AZ_Value','oz_odds_value0','Diff_OZ_Value'
+
            ], 1, inplace=True)
 
 # data.drop(['oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'oz_odds_value0', 'az_value0',
@@ -264,10 +274,10 @@ display(X_all.head())
 #                                                     random_state = 200,
 #                                                     stratify = y_all)
 
-X_train = X_all[:2400]
-X_test = X_all[2400:]
-y_train = y_all[:2400]
-y_test = y_all[2400:]
+X_train = X_all[:3000]
+X_test = X_all[3000:]
+y_train = y_all[:3000]
+y_test = y_all[3000:]
 
 
 # ## Training and Evaluating Models
@@ -367,9 +377,9 @@ from xgboost import plot_importance
 from matplotlib import pyplot
 
 # TODO: Create the parameters list you wish to tune
-parameters = { 'learning_rate' : [0.1],
-               'n_estimators' : [55],
-               'max_depth': [3],
+parameters = { 'learning_rate' : [0.01],
+               'n_estimators' : [80],
+               'max_depth': [1],
                'min_child_weight': [3],
                'gamma':[0.4],
                'subsample' : [0.8],

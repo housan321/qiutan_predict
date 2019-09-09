@@ -10,6 +10,7 @@ import pandas as pd
 from multiprocessing import Process
 from scrapy import cmdline
 from qiutan.db_sql import MySql
+from qiutan.spiders.Ec import EcSpider
 from predict import prediction
 from sklearn.externals import joblib
 
@@ -26,11 +27,13 @@ def delete_database(db):
     del_sql1 = 'truncate table all_match_score;'
     del_sql2 = 'truncate table all_match_oz_odds;'
     del_sql3 = 'truncate table all_match_az_odds;'
-    del_sql4 = 'truncate table taday_matchs;'
+    del_sql4 = 'truncate table all_bs_data;'
+    del_sql5 = 'truncate table taday_matchs;'
     db.del_item(del_sql1)
     db.del_item(del_sql2)
     db.del_item(del_sql3)
     db.del_item(del_sql4)
+    db.del_item(del_sql5)
 
 #3 合并数据，保存到文件
 def union_save_database(db):
@@ -83,15 +86,62 @@ def union_save_database(db):
     db.save_to_csv(save_sql)
 
 
-def predict_match():
+def predict_match(qiutan):
     loc = r"D:\qiutan_predict\prediction\\"
     loadfile = loc + r"datasets\taday_matchs.csv"
     pred_res = pd.DataFrame()
     taday_matchs = pd.read_csv(loadfile, encoding="gbk")
+
+    # ###################################################################################################
+    # factor = 1 / 7  # 实力更新因子
+    # con = qiutan.db
+    # spider = EcSpider()
+    # leagueId = spider.leagueId
+    # all_bs_data = pd.read_sql("select * from all_bs_data", con)
+    # all_coff = dict()
+    # for league in leagueId:
+    #     data = all_bs_data[all_bs_data.league == league]
+    #     data = data.sort_values(by=['season', 'lunci'], ascending=True)
+    #     playteam = pd.concat([data['hometeam'], data['awayteam']])
+    #     playteam = playteam.drop_duplicates(keep='first').reset_index(drop=True)
+    #     playteam = playteam.to_dict()
+    #     coff = dict([val, 1.0] for key, val in playteam.items())  # 每队原始实力参数赋于1
+    #     data = data.reset_index(drop=True)
+    #
+    #     for n in range(len(data)):
+    #         match = data.iloc[n]
+    #         if match['FTR'] == 'H':
+    #             coff_home = coff[match['hometeam']] + factor * coff[match['awayteam']]
+    #             coff_away = coff[match['awayteam']] - factor * coff[match['awayteam']]
+    #         elif match['FTR'] == 'D':
+    #             diff = coff[match['hometeam']] - coff[match['awayteam']]
+    #             coff_home = coff[match['hometeam']] - factor * diff
+    #             coff_away = coff[match['awayteam']] + factor * diff
+    #         elif match['FTR'] == 'A':
+    #             coff_home = coff[match['hometeam']] - factor * coff[match['hometeam']]
+    #             coff_away = coff[match['awayteam']] + factor * coff[match['hometeam']]
+    #
+    #         coff[match['hometeam']] = coff_home
+    #         coff[match['awayteam']] = coff_away
+    #
+    #     all_coff = dict(all_coff, **coff)
+    #
+    # taday_matchs['coff_home'] = 0
+    # taday_matchs['coff_away'] = 0
+    # for n in range(len(taday_matchs)):
+    #     taday_matchs.loc[n, 'coff_home'] = all_coff[taday_matchs.loc[n, 'hometeam']]
+    #     taday_matchs.loc[n, 'coff_away'] = all_coff[taday_matchs.loc[n, 'awayteam']]
+    #
+    # ###################################################################################################
+
+
+
     match_info = taday_matchs[['league', 'hometeam', 'awayteam', 'bs_time']]
 
     predict = prediction()
-    X_all = predict.extract_feature(loadfile)
+    X_all = predict.extract_feature(taday_matchs)
+
+
 
     for n in range(len(match_info)):
         data = X_all[n:n+1]
@@ -114,8 +164,8 @@ def predict_match():
 if __name__=='__main__':#在win系统下必须要满足这个if条件
     db = MySql('localhost', 'root', '123456', 'qiutan', 3306)
 
-    # download = True
-    download = False
+    download = True
+    # download = False
 
     if download:
         #1 先清除旧数据
@@ -133,7 +183,7 @@ if __name__=='__main__':#在win系统下必须要满足这个if条件
         union_save_database(db)
 
     #4 预测
-    predict_match()
+    predict_match(db)
     print('完成预测')
 
 
