@@ -76,7 +76,8 @@ class dataClean(object):
                         'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws','HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
                         'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9',
-                        'coff_home', 'coff_away']
+                        # 'coff_home', 'coff_away'
+                        ]
         playing_stat = playing_stat[columns_req]
         return playing_stat
 
@@ -270,7 +271,7 @@ class dataClean(object):
 
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 284
+    league = 26
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
     raw_data = pd.read_csv(loadfile, encoding="gbk")
@@ -301,11 +302,11 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
     playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
     playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
 
-    playing_stat = playing_stat.drop(['season', 'lunci', 'hometeam','awayteam', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP',
-                                     'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
-                                      'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std',
-                                      'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
-                                      'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std'], axis=1)
+    # playing_stat = playing_stat.drop(['season', 'lunci', 'hometeam','awayteam', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP',
+    #                                  'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
+    #                                   'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std',
+    #                                   'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
+    #                                   'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std'], axis=1)
 
     # Testing set
     # playing_stat_test = playing_stat[1500:]
