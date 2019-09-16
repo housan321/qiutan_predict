@@ -100,7 +100,7 @@ leagueId = {'英超': '36', '西甲': '31', '意甲': '34', '德甲': '8', '法�
             '美职业': '21', '巴西甲': '4'}
 
 
-league = '日职乙'
+league = '瑞典超'
 # In[2]:
 modelname = r'./model/xgboost_joblib({}).dat'.format(league)
 # Read data and drop redundant column.
@@ -108,22 +108,49 @@ data = pd.read_csv(r'./datasets/final_dataset/final_dataset({}).csv'.format(leag
 
 data.dropna(inplace=True)
 
-data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
-            'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
-            'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP','diff_win_rate',
-           'hh_nb_games','hh_nb_wins','hh_nb_draws','aa_nb_games','aa_nb_wins','aa_nb_draws',
-           'az_value9','oz_odds_value9',
 
-           # 'oz_home9_std','oz_draw9_std','oz_away9_std','az_value0', 'Diff_AZ_Value','oz_odds_value0','Diff_OZ_Value'
+['HTGD', 'ATGD', 'HTP', 'ATP', 'HHTGD', 'HHTP', 'AATGD', 'AATP',
+ 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'az_value0', 'coff_home', 'coff_away',
+ 'VTFormPts', 'DiffPts', 'DiffFormPts', 'Diff_AZ_Value', 'Diff_HA_Pts',
+ 'h_win_rate', 'a_win_rate', 'oz_odds_value0', 'Diff_OZ_Value']
 
-           ], 1, inplace=True)
 
-# data.drop(['oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'oz_odds_value0', 'az_value0',
-#            'Diff_OZ_Value','Diff_AZ_Value'],  1, inplace=True)
+['season', 'hometeam', 'awayteam', 'lunci', 'FTR', 'FTRR',
+ 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HLP', 'ALP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr',
+ 'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws', 'HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
+ 'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
+ 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
+ 'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean',
+ 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std',
+ 'az_value0', 'az_value9', 'coff_home', 'coff_away',
+ 'VM1', 'HM1', 'AM1', 'VM2', 'HM2', 'AM2', 'VM3', 'HM3', 'AM3', 'VM4', 'HM4', 'AM4', 'VM5', 'HM5', 'AM5',
+ 'HTFormPts', 'ATFormPts', 'VTFormPts',
+ 'HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5',
+ 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5',
+ 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
+ 'DiffPts', 'DiffFormPts', 'DiffLP', 'Diff_AZ_Value', 'Diff_HA_Pts',
+ 'h_win_rate', 'a_win_rate', 'diff_win_rate', 'oz_odds_value0', 'oz_odds_value9', 'Diff_OZ_Value']
 
-# data.drop(['HTGD', 'ATGD', 'DiffPts', 'DiffFormPts',
-#            'HTP', 'ATP', 'HHTGD', 'AATGD','HHTP', 'AATP',
-#            'VTFormPts', 'Diff_HA_Pts', 'a_win_rate','h_win_rate'], 1, inplace=True)
+print(list(data.columns))
+
+
+# select_features = ['FTR', 'FTRR','az_value9', 'Diff_AZ_Value', 'oz_odds_value9', 'Diff_OZ_Value', 'coff_home', 'coff_away']
+select_features = ['FTR', 'FTRR', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HHTGD', 'HHTP', 'AATGD', 'AATP',
+                   'oz_home9_std', 'oz_draw9_std', 'oz_away9_std', 'az_value0', 'coff_home', 'coff_away',
+                   'VTFormPts', 'DiffPts', 'DiffFormPts', 'Diff_AZ_Value', 'Diff_HA_Pts',
+                   'h_win_rate', 'a_win_rate', 'oz_odds_value0', 'Diff_OZ_Value']
+data = data[select_features]
+
+# data.drop(['HTWinStreak3', 'HTWinStreak5', 'HTLossStreak3', 'HTLossStreak5', 'ATWinStreak3', 'ATWinStreak5', 'ATLossStreak3', 'ATLossStreak5', 'VTWinStreak3', 'VTWinStreak5', 'VTLossStreak3', 'VTLossStreak5',
+#             'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean',
+#             'HM1','HM2','HM3','AM1','AM2','AM3','DiffLP','diff_win_rate',
+#            'hh_nb_games','hh_nb_wins','hh_nb_draws','aa_nb_games','aa_nb_wins','aa_nb_draws',
+#            'az_value9','oz_odds_value9',
+#
+#            # 'oz_home9_std','oz_draw9_std','oz_away9_std','az_value0', 'Diff_AZ_Value','oz_odds_value0','Diff_OZ_Value'
+#
+#            ], 1, inplace=True)
+
 
 # Preview data.
 display(data.head())
@@ -244,8 +271,8 @@ def preprocess_features(X):
 
 # X_part = X_all[['VM1','VM2','VM3','VM4','VM5']]      # ,'VM1','VM2','VM3','VM4','VM5'
 # X_part = preprocess_features(X_part)
-
-X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5'],1)
+#
+# X_all = X_all.drop(['VM1','VM2','VM3','VM4','VM5'],1)
 # X_all = pd.concat([X_all, X_part], axis=1)
 
 print("Processed feature columns ({} total features):\n{}".format(len(X_all.columns), list(X_all.columns)))
@@ -260,9 +287,9 @@ display(X_all.head())
 
 
 
-# from sklearn.preprocessing import StandardScaler
-# standardizer = StandardScaler()
-# X_all = standardizer.fit_transform(X_all)
+from sklearn.preprocessing import StandardScaler
+standardizer = StandardScaler()
+X_all = standardizer.fit_transform(X_all)
 
 
 
@@ -274,10 +301,10 @@ display(X_all.head())
 #                                                     random_state = 200,
 #                                                     stratify = y_all)
 
-X_train = X_all[:3000]
-X_test = X_all[3000:]
-y_train = y_all[:3000]
-y_test = y_all[3000:]
+X_train = X_all[:1400]
+X_test = X_all[1400:]
+y_train = y_all[:1400]
+y_test = y_all[1400:]
 
 
 # ## Training and Evaluating Models
@@ -378,8 +405,8 @@ from matplotlib import pyplot
 
 # TODO: Create the parameters list you wish to tune
 parameters = { 'learning_rate' : [0.01],
-               'n_estimators' : [80],
-               'max_depth': [1],
+               'n_estimators' : [200],
+               'max_depth': [2],
                'min_child_weight': [3],
                'gamma':[0.4],
                'subsample' : [0.8],

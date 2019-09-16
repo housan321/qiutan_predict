@@ -150,8 +150,9 @@ def predict_match(qiutan):
         if (os.path.exists(model_file)):
             xgboost_model = joblib.load(model_file)
         else: xgboost_model = joblib.load(r'./prediction/model/final_model/xgboost_joblib(西甲final).dat') ##如果没有该轮赛的预测器，则默认用西甲轮赛预测器
-        y_pred = xgboost_model.predict(data)
-        res = pd.DataFrame(y_pred, columns=['y_pred'])
+        y_pred = xgboost_model.predict_proba(data)
+        # res = pd.DataFrame(y_pred, columns=['y_pred'])
+        res = pd.DataFrame(y_pred, columns=['y_pred_home', 'y_pred_nothome'])
         # pred_res = pd.concat([info, res], axis=1)
         pred_res = pred_res.append(res, ignore_index=True)
     pred_result = pd.concat([match_info, pred_res], axis=1)
