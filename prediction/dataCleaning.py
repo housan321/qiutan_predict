@@ -4,7 +4,7 @@
 # In[309]:
 
 import pandas as pd
-
+import re
 
 class dataClean(object):
     def only_hw(self, string):
@@ -76,7 +76,8 @@ class dataClean(object):
                         'hh_nb_games', 'hh_nb_wins', 'hh_nb_draws','HHTGD', 'HHTP', 'aa_nb_games', 'aa_nb_wins', 'aa_nb_draws', 'AATGD', 'AATP',
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
                         'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9',
-                        # 'coff_home', 'coff_away'
+                        '3general_coeff_h', '3general_coeff_a','7general_coeff_h', '7general_coeff_a',
+                        'offensive_coeff_h','defensive_coeff_h','offensive_coeff_a','defensive_coeff_a'
                         ]
         playing_stat = playing_stat[columns_req]
         return playing_stat
@@ -227,42 +228,96 @@ class dataClean(object):
         return playing_stat
 
     #获取球队实力参数，参照论文：“Beating the Bookies: Predicting the Outcome of Soccer Games”
-    def get_strength_coefficient(self, playing_stat):
-        factor = 1/5  #实力更新因子
+    def get_general_coefficient(self, playing_stat, fraction):
+        factor = 1/fraction  #赛果因子
+        col_h = '{}general_coeff_h'.format(fraction)
+        col_a = '{}general_coeff_a'.format(fraction)
         new_playing_stat = pd.DataFrame()
         playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
         playing_stat.season = playing_stat.season.astype('str')
-        playing_stat['coff_home'] = 0
-        playing_stat['coff_away'] = 0
+        playing_stat[col_h] = 0
+        playing_stat[col_a] = 0
 
-        # season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
-        season_lis = ['{}'.format(i) for i in range(2011, 2019)]  #赛季格式 2018
+        season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        # season_lis = ['{}'.format(i) for i in range(2011, 2019)]  #赛季格式 2018
         for season in season_lis:
             data =  playing_stat[playing_stat.season == season]
             hometeam = data['hometeam']
             playteam = hometeam.drop_duplicates(keep='first')
             playteam = playteam.to_dict()
-            coff = dict([val, 1] for key, val in playteam.items())  #每队原始实力参数赋于1
+            coeff = dict([val, 1] for key, val in playteam.items())  #每队原始参数赋于1
             data = data.reset_index(drop=True)
             for n in range(len(data)):
-                data.loc[n, 'coff_home'] = coff[data.loc[n, 'hometeam']]
-                data.loc[n, 'coff_away'] = coff[data.loc[n, 'awayteam']]
+                data.loc[n, col_h] = coeff[data.loc[n, 'hometeam']]
+                data.loc[n, col_a] = coeff[data.loc[n, 'awayteam']]
                 match = data.iloc[n]
                 if match['FTR'] == 'H':
-                    coff_home = coff[match['hometeam']] + factor * coff[match['awayteam']]
-                    coff_away = coff[match['awayteam']] - factor * coff[match['awayteam']]
+                    general_coeff_h = coeff[match['hometeam']] + factor * coeff[match['awayteam']]
+                    general_coeff_a = coeff[match['awayteam']] - factor * coeff[match['awayteam']]
                 elif match['FTR'] == 'D':
-                    diff = coff[match['hometeam']] - coff[match['awayteam']]
-                    coff_home = coff[match['hometeam']] - factor * diff
-                    coff_away = coff[match['awayteam']] + factor * diff
+                    diff = coeff[match['hometeam']] - coeff[match['awayteam']]
+                    general_coeff_h = coeff[match['hometeam']] - factor * diff
+                    general_coeff_a = coeff[match['awayteam']] + factor * diff
                 elif  match['FTR'] == 'A':
-                    coff_home = coff[match['hometeam']] - factor * coff[match['hometeam']]
-                    coff_away = coff[match['awayteam']] + factor * coff[match['hometeam']]
+                    general_coeff_h = coeff[match['hometeam']] - factor * coeff[match['hometeam']]
+                    general_coeff_a = coeff[match['awayteam']] + factor * coeff[match['hometeam']]
 
-                # data.loc[n, 'coff_home'] = coff_home
-                # data.loc[n, 'coff_away'] = coff_away
-                coff[match['hometeam']] = coff_home
-                coff[match['awayteam']] = coff_away
+                coeff[match['hometeam']] = general_coeff_h
+                coeff[match['awayteam']] = general_coeff_a
+
+            new_playing_stat = new_playing_stat.append(data, ignore_index=True)
+
+        return new_playing_stat
+
+    def get_offensive_defensive_coefficient(self, playing_stat):
+        factor = 1 / 7  # 攻击/防守因子
+        new_playing_stat = pd.DataFrame()
+        playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
+        playing_stat.season = playing_stat.season.astype('str')
+        playing_stat['offensive_coeff_h'] = 0
+        playing_stat['offensive_coeff_a'] = 0
+        playing_stat['defensive_coeff_h'] = 0
+        playing_stat['defensive_coeff_a'] = 0
+
+        season_lis = ['{}-{}'.format(i, i + 1) for i in range(2011, 2019)]  #赛季格式 2018-2019
+        # season_lis = ['{}'.format(i) for i in range(2011, 2019)]  #赛季格式 2018
+        for season in season_lis:
+            data =  playing_stat[playing_stat.season == season]
+            hometeam = data['hometeam']
+            playteam = hometeam.drop_duplicates(keep='first')
+            playteam = playteam.to_dict()
+            offensive_coeff = dict([val, 1] for key, val in playteam.items())  #每队原始参数赋于1
+            defensive_coeff = dict([val, 1] for key, val in playteam.items())  # 每队原始参数赋于1
+
+            data = data.reset_index(drop=True)
+            for n in range(len(data)):
+                data.loc[n, 'offensive_coeff_h'] = offensive_coeff[data.loc[n, 'hometeam']]
+                data.loc[n, 'defensive_coeff_h'] = defensive_coeff[data.loc[n, 'hometeam']]
+                data.loc[n, 'offensive_coeff_a'] = offensive_coeff[data.loc[n, 'awayteam']]
+                data.loc[n, 'defensive_coeff_a'] = defensive_coeff[data.loc[n, 'awayteam']]
+                match = data.iloc[n]
+                res_score = match['res_score']
+                res = re.split("--", res_score)
+                scored_goals = int(res[0])
+                conceded_goals = int(res[1])
+                if scored_goals > 0:
+                    offensive_coeff_h = offensive_coeff[match['hometeam']] + scored_goals * factor * defensive_coeff[match['awayteam']]
+                    defensive_coeff_a = defensive_coeff[match['awayteam']] - scored_goals * factor * defensive_coeff[match['awayteam']]
+                else:
+                    offensive_coeff_h = offensive_coeff[match['hometeam']] - factor * offensive_coeff[match['hometeam']]
+                    defensive_coeff_a = defensive_coeff[match['awayteam']] + factor * offensive_coeff[match['hometeam']]
+
+                if conceded_goals > 0:
+                    offensive_coeff_a = offensive_coeff[match['awayteam']] + conceded_goals * factor * defensive_coeff[match['hometeam']]
+                    defensive_coeff_h = defensive_coeff[match['hometeam']] - conceded_goals * factor * defensive_coeff[match['hometeam']]
+                else:
+                    offensive_coeff_a = offensive_coeff[match['awayteam']] - factor * offensive_coeff[match['awayteam']]
+                    defensive_coeff_h = defensive_coeff[match['hometeam']] + factor * offensive_coeff[match['awayteam']]
+
+                offensive_coeff[match['hometeam']] = offensive_coeff_h
+                offensive_coeff[match['awayteam']] = offensive_coeff_a
+                defensive_coeff[match['hometeam']] = defensive_coeff_h
+                defensive_coeff[match['awayteam']] = defensive_coeff_a
 
             new_playing_stat = new_playing_stat.append(data, ignore_index=True)
 
@@ -270,14 +325,19 @@ class dataClean(object):
 
 
 
+
+
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 26
+    league = 36
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
     raw_data = pd.read_csv(loadfile, encoding="gbk")
 
     clean = dataClean()
-    playing_stat = clean.get_strength_coefficient(raw_data)
+
+    playing_stat = clean.get_offensive_defensive_coefficient(raw_data)
+    playing_stat = clean.get_general_coefficient(playing_stat, 3)
+    playing_stat = clean.get_general_coefficient(playing_stat, 7)
 
     playing_stat = clean.select_data(playing_stat)
 

@@ -116,6 +116,7 @@ class Match_Score_New_Item(scrapy.Item):
     bs_time = scrapy.Field()
     FTR = scrapy.Field()
     FTRR = scrapy.Field()
+    res_score = scrapy.Field()
     h_nb_wins = scrapy.Field()
     h_nb_draws = scrapy.Field()
     h_nb_losts = scrapy.Field()
@@ -159,14 +160,14 @@ class Match_Score_New_Item(scrapy.Item):
 
     def get_insert_data(self):
         insert_sql = 'INSERT  IGNORE  INTO all_match_score values (' \
-                     '%s,%s,%s,%s,%s,%s,%s,%s,%s,' \
+                     '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,' \
                      '%s,%s,%s,%s,%s,%s,%s,%s,' \
                      '%s,%s,%s,%s,%s,%s,%s,%s,%s,' \
                      '%s,%s,%s,%s,%s,%s,%s,%s,' \
                      '%s,%s,%s,%s,%s,%s,%s,%s,%s,' \
                      '%s,%s,%s)'
         data = (
-        self['league'], self['season'], self['bs_num_id'], self['lunci'], self['hometeam'], self['awayteam'], self['bs_time'], self['FTR'], self['FTRR'],
+        self['league'], self['season'], self['bs_num_id'], self['lunci'], self['hometeam'], self['awayteam'], self['bs_time'], self['FTR'], self['FTRR'], self['res_score'],
         self['h_nb_wins'], self['h_nb_draws'], self['h_nb_losts'], self['HTGS'],  self['HTGC'], self['HTGD'], self['HTP'], self['HLP'],
         self['hh_nb_games'], self['hh_nb_wins'], self['hh_nb_draws'], self['hh_nb_losts'], self['HHTGS'], self['HHTGC'], self['HHTGD'], self['HHTP'], self['HHLP'],
         self['a_nb_wins'], self['a_nb_draws'], self['a_nb_losts'], self['ATGS'], self['ATGC'],self['ATGD'], self['ATP'], self['ALP'],
@@ -185,6 +186,7 @@ class Match_Score_New_Item(scrapy.Item):
 # bs_time VARCHAR(30),
 # FTR VARCHAR(10),
 # FTRR VARCHAR(10),
+# res_score VARCHAR(20),
 # h_nb_wins INT,
 # h_nb_draws INT,
 # h_nb_losts INT,

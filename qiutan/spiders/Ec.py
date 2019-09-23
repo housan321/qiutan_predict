@@ -96,6 +96,7 @@ class EcSpider(scrapy.Spider):
             req.meta['bs_num_id'] = bs_num_id
             req.meta['FTR'] = 'UNKNOWN'
             req.meta['FTRR'] = 'UNKNOWN'
+            req.meta['res_score'] = 'UNKNOWN'
             req.meta['hometeam'] = hometeam
             req.meta['awayteam'] = awayteam
             req.meta['bs_time'] = bs_time
@@ -196,6 +197,7 @@ class EcSpider(scrapy.Spider):
                 elif (w_goal-r_goal) < 0: FTRR = 'A'
                 else: FTRR = 'D'
 
+                res_score = lis[6].replace('-', '--')  # 比分的形式是"1--2"
                 item['league'] = league
                 item['season'] = season
                 item['lunci'] = num
@@ -206,7 +208,7 @@ class EcSpider(scrapy.Spider):
                 item['bs_num_id'] = bs_num_id
                 item['hometeam'] = lis_all_team[index_num_h + 1]
                 item['h_team_id'] = lis[4]
-                item['res_score'] = lis[6]
+                item['res_score'] = res_score
                 item['awayteam'] = lis_all_team[index_num_a + 1]
                 item['a_team_id'] = lis[5]
                 item['all_rang'] = self.rangqiu(lis[10])
@@ -228,6 +230,8 @@ class EcSpider(scrapy.Spider):
         FTR = response.meta['FTR']
         FTRR = response.meta['FTRR']
         bs_time = response.meta['bs_time']
+        res_score = response.meta['res_score']
+
         print(season, bs_num_id, response.status)
 
         # 实例化Item
@@ -259,6 +263,7 @@ class EcSpider(scrapy.Spider):
         item['bs_time'] = bs_time
         item['FTR'] = FTR
         item['FTRR'] = FTRR
+        item['res_score'] = res_score
 
         item['h_nb_wins'] = home_table[13]
         item['h_nb_draws'] = home_table[14]
