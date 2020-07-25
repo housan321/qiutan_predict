@@ -28,9 +28,6 @@ class MySql:
         self.cursor.execute(sql)
 
     def union_item(self, sql):
-        # union_sql = 'insert into today_matchs (league,season,bs_num_id,lunci,hometeam, awayteam,FTR,h_win,h_draw,h_lost,a_win,a_draw,a_lost,HTGS,ATGS,HTGC,ATGC,HTGD,ATGD,HTP,ATP,HomeLP,AwayLP,VTFormPtsStr,HTFormPtsStr,ATFormPtsStr,WHH0,WHD0,WHA0,WHH9, WHD9,WHA9) ' \
-        #             'select score.league,score.season,score.bs_num_id,score.lunci,score.hometeam,score.awayteam,score.FTR,score.h_win,score.h_draw,score.h_lost,score.a_win,score.a_draw,score.a_lost,score.HTGS,score.ATGS,score.HTGC,score.ATGC,score.HTGD,score.ATGD,score.HTP,score.ATP,' \
-        #             'score.HomeLP,score.AwayLP,score.VTFormPtsStr,score.HTFormPtsStr,score.ATFormPtsStr,odds.WHH0,odds.WHD0,odds.WHA0,odds.WHH9,odds.WHD9,odds.WHA9 from all_match_odds odds join all_match_score score on odds.bs_num_id = score.bs_num_id ;'
         try:
             self.cursor.execute(sql)
             self.db.commit()
@@ -43,6 +40,15 @@ class MySql:
             self.cursor.execute(sql)
         except:
             print('数据删除失败,请查看sql语句~')
+
+    def is_exist(self, data):
+        sql = r"SELECT IFNULL((SELECT 'Exist' from all_match_samples where bs_num_id = %s limit 1), 'Nonexist');"
+        try:
+            self.cursor.execute(sql, data)
+            result = self.cursor.fetchone()
+            return list(result.values())[0]
+        except:
+            print('数据查询失败,请查看sql语句~')
 
 if __name__ == '__main__':
     db = MySql('localhost', 'root', '123456', 'qiutan', 3306)

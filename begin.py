@@ -6,13 +6,12 @@ Created on Sun Jun 30 23:43:56 2019
 """
 
 import os,sys,time
-import pandas as pd
 from multiprocessing import Process
 from scrapy import cmdline
 from qiutan.db_sql import MySql
-from qiutan.spiders.Ec import EcSpider
-from predict import prediction
 from sklearn.externals import joblib
+from soccer_sage.dolores import dolores
+from soccer_sage.dolores import predict_match
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -68,78 +67,7 @@ def union_save_database(db):
     db.save_to_csv(save_sql)
 
 
-def predict_match(qiutan):
-    loc = r"D:\qiutan_predict\prediction\\"
-    loadfile = loc + r"datasets\taday_matchs.csv"
-    pred_res = pd.DataFrame()
-    taday_matchs = pd.read_csv(loadfile, encoding="gbk")
 
-    # ###################################################################################################
-    # factor = 1 / 7  # 实力更新因子
-    # con = qiutan.db
-    # spider = EcSpider()
-    # leagueId = spider.leagueId
-    # all_bs_data = pd.read_sql("select * from all_bs_data", con)
-    # all_coff = dict()
-    # for league in leagueId:
-    #     data = all_bs_data[all_bs_data.league == league]
-    #     data = data.sort_values(by=['season', 'lunci'], ascending=True)
-    #     playteam = pd.concat([data['hometeam'], data['awayteam']])
-    #     playteam = playteam.drop_duplicates(keep='first').reset_index(drop=True)
-    #     playteam = playteam.to_dict()
-    #     coff = dict([val, 1.0] for key, val in playteam.items())  # 每队原始实力参数赋于1
-    #     data = data.reset_index(drop=True)
-    #
-    #     for n in range(len(data)):
-    #         match = data.iloc[n]
-    #         if match['FTR'] == 'H':
-    #             coff_home = coff[match['hometeam']] + factor * coff[match['awayteam']]
-    #             coff_away = coff[match['awayteam']] - factor * coff[match['awayteam']]
-    #         elif match['FTR'] == 'D':
-    #             diff = coff[match['hometeam']] - coff[match['awayteam']]
-    #             coff_home = coff[match['hometeam']] - factor * diff
-    #             coff_away = coff[match['awayteam']] + factor * diff
-    #         elif match['FTR'] == 'A':
-    #             coff_home = coff[match['hometeam']] - factor * coff[match['hometeam']]
-    #             coff_away = coff[match['awayteam']] + factor * coff[match['hometeam']]
-    #
-    #         coff[match['hometeam']] = coff_home
-    #         coff[match['awayteam']] = coff_away
-    #
-    #     all_coff = dict(all_coff, **coff)
-    #
-    # taday_matchs['coff_home'] = 0
-    # taday_matchs['coff_away'] = 0
-    # for n in range(len(taday_matchs)):
-    #     taday_matchs.loc[n, 'coff_home'] = all_coff[taday_matchs.loc[n, 'hometeam']]
-    #     taday_matchs.loc[n, 'coff_away'] = all_coff[taday_matchs.loc[n, 'awayteam']]
-    #
-    # ###################################################################################################
-
-
-
-    match_info = taday_matchs[['league', 'hometeam', 'awayteam', 'bs_time']]
-
-    predict = prediction()
-    X_all = predict.extract_feature(taday_matchs)
-
-
-
-    for n in range(len(match_info)):
-        data = X_all[n:n+1]
-        league = match_info.league[n]
-        model_file = r'./prediction/model/final_model/xgboost_joblib({}final).dat'.format(league)
-        if (os.path.exists(model_file)):
-            xgboost_model = joblib.load(model_file)
-        else: xgboost_model = joblib.load(r'./prediction/model/final_model/xgboost_joblib(西甲final).dat') ##如果没有该轮赛的预测器，则默认用西甲轮赛预测器
-        y_pred = xgboost_model.predict_proba(data)
-        # res = pd.DataFrame(y_pred, columns=['y_pred'])
-        res = pd.DataFrame(y_pred, columns=['y_pred_home', 'y_pred_nothome'])
-        # pred_res = pd.concat([info, res], axis=1)
-        pred_res = pred_res.append(res, ignore_index=True)
-    pred_result = pd.concat([match_info, pred_res], axis=1)
-    nowtime = time.strftime('%Y%m%d_%H_%M', time.localtime())
-    pred_result.to_csv("./prediction/datasets/predResult{}.csv".format(nowtime), encoding = "gbk", index=None)
 
 
 

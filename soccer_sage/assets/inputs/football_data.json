@@ -1,0 +1,98 @@
+{
+	"eng.1": {
+		"has_seasons": true,
+		"slug": "E0"
+	},
+	"eng.2": {
+		"has_seasons": true,
+		"slug": "E1"
+	},
+	"sco.1": {
+		"has_seasons": true,
+		"slug": "SC0"
+	},
+	"sco.2": {
+		"has_seasons": true,
+		"slug": "SC1"
+	},
+	"ger.1": {
+		"has_seasons": true,
+		"slug": "D1"
+	},
+	"ger.2": {
+		"has_seasons": true,
+		"slug": "D2"
+	},
+	"ita.1": {
+		"has_seasons": true,
+		"slug": "I1"
+	},
+	"ita.2": {
+		"has_seasons": true,
+		"slug": "I2"
+	},
+	"esp.1": {
+		"has_seasons": true,
+		"slug": "SP1"
+	},
+	"esp.2": {
+		"has_seasons": true,
+		"slug": "SP2"
+	},
+	"fra.1": {
+		"has_seasons": true,
+		"slug": "F1"
+	},
+	"fra.2": {
+		"has_seasons": true,
+		"slug": "F2"
+	},
+	"ned.1": {
+		"has_seasons": true,
+		"slug": "N1"
+	},
+	"bel.1": {
+		"has_seasons": true,
+		"slug": "B1"
+	},
+	"por.1": {
+		"has_seasons": true,
+		"slug": "P1"
+	},
+	"tur.1": {
+		"has_seasons": true,
+		"slug": "T1"
+	},
+	"gre.1": {
+		"has_seasons": true,
+		"slug": "T1"
+	},
+	"arg.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/ARG.csv"
+	},
+	"bra.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/BRA.csv"
+	},
+	"chn.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/CHN.csv"
+	},
+	"jpn.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/JPN.csv"
+	},
+	"mex.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/MEX.csv"
+	},
+	"rus.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/RUS.csv"
+	},
+	"usa.1": {
+		"has_seasons": false,
+		"url": "http://www.football-data.co.uk/new/USA.csv"
+	}
+}

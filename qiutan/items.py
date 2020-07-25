@@ -36,7 +36,7 @@ class SaichengItem(scrapy.Item):
     half_score = scrapy.Field()
 
     def get_insert_data(self):
-        insert_sql = 'INSERT INTO all_bs_data values (null,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+        insert_sql = 'INSERT INTO all_bs_data values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
         data = (
         self['league'], self['season'], self['lunci'], self['bs_num_id'], self['FTR'], self['FTRR'], self['bs_time'], self['hometeam'],
         self['h_team_id'], self['res_score'], self['awayteam'], self['a_team_id'], self['all_rang'],
@@ -45,7 +45,7 @@ class SaichengItem(scrapy.Item):
 
 
 # all_bs_data 建表语句
-# CREATE TABLE all_bs_data(id INT PRIMARY KEY AUTO_INCREMENT,
+# CREATE TABLE all_bs_data(
 # league VARCHAR(20),
 # season VARCHAR(20),
 # lunci TINYINT,
@@ -62,7 +62,8 @@ class SaichengItem(scrapy.Item):
 # half_rang VARCHAR(6),
 # sizes_balls_a VARCHAR(6),
 # sizes_balls_h VARCHAR(6),
-# half_score VARCHAR(6)
+# half_score VARCHAR(6),
+# PRIMARY KEY(bs_num_id)
 # )DEFAULT CHARSET=utf8mb4;
 # alter table all_bs_data add bs_num_id int after lunci;
 
@@ -330,9 +331,26 @@ class Match_AZ_Odds_New_Item(scrapy.Item):
 
 
 
+class Match_Sample_New_Item(scrapy.Item):
+    league = scrapy.Field()
+    season = scrapy.Field()
+    bs_num_id = scrapy.Field()
+    lunci = scrapy.Field()
+    hometeam = scrapy.Field()
+    awayteam = scrapy.Field()
+    bs_time = scrapy.Field()
+    FTR = scrapy.Field()
+    res_score = scrapy.Field()
+    VTFormPtsStr = scrapy.Field()
+    HTFormPtsStr = scrapy.Field()
+    ATFormPtsStr = scrapy.Field()
 
+    def get_insert_data(self):
+        insert_sql = 'INSERT INTO all_match_samples values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
+        data = (self['league'], self['season'], self['bs_num_id'], self['lunci'], self['hometeam'], self['awayteam'],
+        self['bs_time'], self['FTR'], self['res_score'], self['VTFormPtsStr'], self['HTFormPtsStr'], self['ATFormPtsStr'])
 
-
+        return insert_sql, data
 
 
 

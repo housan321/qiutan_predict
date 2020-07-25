@@ -77,7 +77,7 @@ class dataClean(object):
                         'oz_home0_mean', 'oz_draw0_mean', 'oz_away0_mean', 'oz_home9_mean', 'oz_draw9_mean', 'oz_away9_mean', 'oz_home0_std', 'oz_draw0_std', 'oz_away0_std', 'oz_home9_std', 'oz_draw9_std', 'oz_away9_std',
                         'az_home0_mean', 'az_size0_mean', 'az_away0_mean', 'az_home9_mean', 'az_size9_mean', 'az_away9_mean', 'az_home0_std', 'az_size0_std', 'az_away0_std', 'az_home9_std', 'az_size9_std', 'az_away9_std', 'az_value0', 'az_value9',
                         '3general_coeff_h', '3general_coeff_a','7general_coeff_h', '7general_coeff_a',
-                        'offensive_coeff_h','defensive_coeff_h','offensive_coeff_a','defensive_coeff_a'
+                        # 'offensive_coeff_h','defensive_coeff_h','offensive_coeff_a','defensive_coeff_a'
                         ]
         playing_stat = playing_stat[columns_req]
         return playing_stat
@@ -126,6 +126,8 @@ class dataClean(object):
         playing_stat['DiffFormPts'] = playing_stat['HTFormPts'] - playing_stat['ATFormPts']
         playing_stat['DiffLP'] = playing_stat['HLP'] - playing_stat['ALP']
         playing_stat['Diff_AZ_Value'] = playing_stat['az_value9'] - playing_stat['az_value0']
+        # playing_stat['Diff_offensive_h'] = playing_stat['offensive_coeff_h'] - playing_stat['defensive_coeff_a']
+        # playing_stat['Diff_offensive_a'] = playing_stat['offensive_coeff_a'] - playing_stat['defensive_coeff_h']
 
         return playing_stat
 
@@ -270,7 +272,8 @@ class dataClean(object):
         return new_playing_stat
 
     def get_offensive_defensive_coefficient(self, playing_stat):
-        factor = 1 / 7  # 攻击/防守因子
+        factor_h = 1 / 8  # 攻击/防守因子
+        factor_a = 1 / 5  # 攻击/防守因子
         new_playing_stat = pd.DataFrame()
         playing_stat = playing_stat.sort_values(by=['season','lunci'], ascending=True)
         playing_stat.season = playing_stat.season.astype('str')
@@ -298,21 +301,24 @@ class dataClean(object):
                 match = data.iloc[n]
                 res_score = match['res_score']
                 res = re.split("--", res_score)
-                scored_goals = int(res[0])
-                conceded_goals = int(res[1])
-                if scored_goals > 0:
-                    offensive_coeff_h = offensive_coeff[match['hometeam']] + scored_goals * factor * defensive_coeff[match['awayteam']]
-                    defensive_coeff_a = defensive_coeff[match['awayteam']] - scored_goals * factor * defensive_coeff[match['awayteam']]
-                else:
-                    offensive_coeff_h = offensive_coeff[match['hometeam']] - factor * offensive_coeff[match['hometeam']]
-                    defensive_coeff_a = defensive_coeff[match['awayteam']] + factor * offensive_coeff[match['hometeam']]
+                home_goals = int(res[0])
+                away_goals = int(res[1])
+                avg_home_goals = data.loc[n, 'HTGS'] / data.loc[n, 'lunci']
+                avg_away_goals = data.loc[n, 'ATGS'] / data.loc[n, 'lunci']
 
-                if conceded_goals > 0:
-                    offensive_coeff_a = offensive_coeff[match['awayteam']] + conceded_goals * factor * defensive_coeff[match['hometeam']]
-                    defensive_coeff_h = defensive_coeff[match['hometeam']] - conceded_goals * factor * defensive_coeff[match['hometeam']]
+                if home_goals > 0:
+                    offensive_coeff_h = offensive_coeff[match['hometeam']] + home_goals * factor_h * defensive_coeff[match['awayteam']]
+                    defensive_coeff_a = defensive_coeff[match['awayteam']] - home_goals * factor_h * defensive_coeff[match['awayteam']]
                 else:
-                    offensive_coeff_a = offensive_coeff[match['awayteam']] - factor * offensive_coeff[match['awayteam']]
-                    defensive_coeff_h = defensive_coeff[match['hometeam']] + factor * offensive_coeff[match['awayteam']]
+                    offensive_coeff_h = offensive_coeff[match['hometeam']] - avg_home_goals * factor_a * offensive_coeff[match['hometeam']]
+                    defensive_coeff_a = defensive_coeff[match['awayteam']] + avg_home_goals * factor_a * offensive_coeff[match['hometeam']]
+
+                if away_goals > 0:
+                    offensive_coeff_a = offensive_coeff[match['awayteam']] + away_goals * factor_a * defensive_coeff[match['hometeam']]
+                    defensive_coeff_h = defensive_coeff[match['hometeam']] - away_goals * factor_a * defensive_coeff[match['hometeam']]
+                else:
+                    offensive_coeff_a = offensive_coeff[match['awayteam']] - avg_away_goals * factor_h  * offensive_coeff[match['awayteam']]
+                    defensive_coeff_h = defensive_coeff[match['hometeam']] + avg_away_goals * factor_h  * offensive_coeff[match['awayteam']]
 
                 offensive_coeff[match['hometeam']] = offensive_coeff_h
                 offensive_coeff[match['awayteam']] = offensive_coeff_a
@@ -328,14 +334,14 @@ class dataClean(object):
 
 
 if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
-    league = 36
+    league = 26
     loadfile = r"datasets/league/league_match_data({}).csv".format(league)
     savefile = r'datasets/final_dataset/final_dataset({}).csv'.format(league)
-    raw_data = pd.read_csv(loadfile, encoding="gbk")
+    playing_stat = pd.read_csv(loadfile, encoding="gbk")
 
     clean = dataClean()
 
-    playing_stat = clean.get_offensive_defensive_coefficient(raw_data)
+    # playing_stat = clean.get_offensive_defensive_coefficient(playing_stat)
     playing_stat = clean.get_general_coefficient(playing_stat, 3)
     playing_stat = clean.get_general_coefficient(playing_stat, 7)
 
@@ -359,8 +365,8 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
 
 
 
-    playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
-    playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
+    # playing_stat['FTR'] = playing_stat.FTR.apply(clean.only_hw)
+    # playing_stat['FTRR'] = playing_stat.FTRR.apply(clean.only_hw)
 
     # playing_stat = playing_stat.drop(['season', 'lunci', 'hometeam','awayteam', 'HTGS', 'ATGS', 'HTGC', 'ATGC', 'HLP', 'ALP',
     #                                  'HTFormPts', 'ATFormPts', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr', 'HM4','HM5', 'AM4', 'AM5',
@@ -377,156 +383,3 @@ if __name__ == '__main__':  # 在win系统下必须要满足这个if条件
 
 
 
-
-
-
-
-
-
-
-#
-#
-#
-#
-# loc="datasets\\"
-# raw_data = pd.read_excel(loc+"league_match_data.xlsx")
-#
-# print(len(raw_data.columns))
-#
-#
-# columns_req = ['FTR', 'season', 'lunci', 'HTGS','ATGS','HTGC','ATGC', 'HTGD', 'ATGD', 'HTP', 'ATP', 'HomeLP', 'AwayLP', 'VTFormPtsStr', 'HTFormPtsStr', 'ATFormPtsStr']
-# playing_stat = raw_data[columns_req]
-#
-# playing_stat.head()
-# # print(playing_statistics_1.shape)
-#
-#
-#
-#
-# def get_points(result):
-#     if result == 'W':
-#         return 3
-#     elif result == 'D':
-#         return 1
-#     else:
-#         return 0
-#
-# # Gets the form points.
-# def get_form_points(string):
-#     sum = 0
-#     for letter in string:
-#         sum += get_points(letter)
-#     return sum
-#
-# playing_stat['HTFormPts'] = playing_stat['HTFormPtsStr'].apply(get_form_points)
-# playing_stat['ATFormPts'] = playing_stat['ATFormPtsStr'].apply(get_form_points)
-# playing_stat['VTFormPts'] = playing_stat['VTFormPtsStr'].apply(get_form_points)
-#
-# # Identify Win/Loss Streaks if any.
-# def get_3game_ws(string):
-#     if string[-3:] == 'WWW':
-#         return 1
-#     else:
-#         return 0
-#
-#
-# def get_5game_ws(string):
-#     if string == 'WWWWW':
-#         return 1
-#     else:
-#         return 0
-#
-#
-# def get_3game_ls(string):
-#     if string[-3:] == 'LLL':
-#         return 1
-#     else:
-#         return 0
-#
-#
-# def get_5game_ls(string):
-#     if string == 'LLLLL':
-#         return 1
-#     else:
-#         return 0
-#
-#
-# playing_stat['HTWinStreak3'] = playing_stat['HTFormPtsStr'].apply(get_3game_ws)
-# playing_stat['HTWinStreak5'] = playing_stat['HTFormPtsStr'].apply(get_5game_ws)
-# playing_stat['HTLossStreak3'] = playing_stat['HTFormPtsStr'].apply(get_3game_ls)
-# playing_stat['HTLossStreak5'] = playing_stat['HTFormPtsStr'].apply(get_5game_ls)
-#
-# playing_stat['ATWinStreak3'] = playing_stat['ATFormPtsStr'].apply(get_3game_ws)
-# playing_stat['ATWinStreak5'] = playing_stat['ATFormPtsStr'].apply(get_5game_ws)
-# playing_stat['ATLossStreak3'] = playing_stat['ATFormPtsStr'].apply(get_3game_ls)
-# playing_stat['ATLossStreak5'] = playing_stat['ATFormPtsStr'].apply(get_5game_ls)
-#
-# playing_stat['VTWinStreak3'] = playing_stat['VTFormPtsStr'].apply(get_3game_ws)
-# playing_stat['VTWinStreak5'] = playing_stat['VTFormPtsStr'].apply(get_5game_ws)
-# playing_stat['VTLossStreak3'] = playing_stat['VTFormPtsStr'].apply(get_3game_ls)
-# playing_stat['VTLossStreak5'] = playing_stat['VTFormPtsStr'].apply(get_5game_ls)
-#
-# # Diff in points
-# playing_stat['DiffPts'] = playing_stat['HTP'] - playing_stat['ATP']
-# playing_stat['DiffFormPts'] = playing_stat['HTFormPts'] - playing_stat['ATFormPts']
-#
-# # Diff in last year positions
-# playing_stat['DiffLP'] = playing_stat['HomeLP'] - playing_stat['AwayLP']
-#
-#
-# def only_hw(string):
-#     if string == 'H':
-#         return 'H'
-#     else:
-#         return 'NH'
-#
-# playing_stat['FTR'] = playing_stat.FTR.apply(only_hw)
-#
-#
-# playing_stat=playing_stat.drop(["season","HomeLP","AwayLP","HTFormPts","ATFormPts",
-#                                 "VTFormPtsStr","HTFormPtsStr","ATFormPtsStr"],axis=1)
-# playing_stat.head()
-#
-#
-# # Scale DiffPts , DiffFormPts, HTGD, ATGD by Matchweek.
-# cols = ['HTGD','ATGD','DiffPts','DiffFormPts','HTP','ATP','VTFormPts','HTGS','ATGS','HTGC','ATGC']
-#
-# playing_stat.lunci = playing_stat.lunci.astype(float)
-#
-# for col in cols:
-#     playing_stat[col] = playing_stat[col] / playing_stat.lunci
-#
-# playing_stat.head()
-#
-# # playing_stat.HTGS=(playing_stat.HTGS)/
-# # playing_stat.HTGS = playing_stat.HTGS / playing_stat.lunci
-# # playing_stat.ATGS = playing_stat.ATGS / playing_stat.lunci
-# # playing_stat.HTGC = playing_stat.HTGC / playing_stat.lunci
-# # playing_stat.ATGC = playing_stat.ATGC / playing_stat.lunci
-# #
-# # playing_stat.VTFormPts = playing_stat.VTFormPts / 5
-# # playing_stat.DiffFormPts = playing_stat.DiffFormPts / 5
-#
-#
-# playing_stat = playing_stat.drop(["lunci"], axis=1)
-#
-#
-# # playing_stat=playing_stat.drop(["VM1","VM2","VM3","VM4","VM5",
-# #                                 "VTFormPts","VTWinStreak3","VTWinStreak5",
-# #                                 "VTLossStreak3", "VTLossStreak5"], axis=1)
-#
-# # playing_stat=playing_stat.drop(["HTGS","ATGS","HTGC","ATGC",
-# #                                 "ATWinStreak3","ATWinStreak5","ATLossStreak3", "ATLossStreak5",
-# #                                 "HTWinStreak3","HTWinStreak5","HTLossStreak3", "HTLossStreak5",
-# #                                 "VTWinStreak3","VTWinStreak5","VTLossStreak3","VTLossStreak5"], axis=1)
-#
-# # Testing set
-# playing_stat_test = playing_stat[1500:]
-# playing_stat = playing_stat[:]
-#
-# playing_stat.to_csv(loc + "final_dataset.csv",index=None)
-# playing_stat_test.to_csv(loc+"test.csv",index=None)
-#
-#
-#
-#

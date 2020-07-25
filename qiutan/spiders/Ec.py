@@ -3,6 +3,7 @@ import scrapy
 import re, time
 from datetime import timedelta, datetime
 import pandas as pd
+from qiutan.db_sql import MySql
 from qiutan.items import SaichengItem
 from qiutan.items import Team_DataItem
 from qiutan.items import Member_Data_New_Item
@@ -11,55 +12,39 @@ from qiutan.items import Member_Data_Old_Item
 from qiutan.items import Match_Score_New_Item
 from qiutan.items import Match_OZ_Odds_New_Item
 from qiutan.items import Match_AZ_Odds_New_Item
+from qiutan.items import Match_Sample_New_Item
 
+from qiutan.league import (leagueId, subleagueId, league_season)
 
 class EcSpider(scrapy.Spider):
+    db = MySql('localhost', 'root', '123456', 'qiutan', 3306)
     name = 'predict'
     allowed_domains = ['zq.win007.com', 'bf.win007.com']
-
-    leagueId = {'英超': '36', '西甲': '31', '意甲': '34', '德甲': '8', '法甲': '11',
-                 '苏超': '29', '葡超': '23', '挪超': '22', '瑞典超': '26',  '荷甲': '16','俄超':'10',
-                '英冠': '37', '德乙':'9',
-                '中超': '60', '日职联': '25', '日职乙': '284', '韩K联': '15',
-                '美职业': '21', '巴西甲': '4'}
-    subleagueId = {'英超': '', '西甲': '', '意甲': '', '德甲': '', '法甲': '',
-                   '苏超': '', '葡超': '_1123', '挪超': '', '瑞典超': '_431', '荷甲': '_98','俄超':'_591',
-                   '英冠': '_87','德乙':'_132',
-                   '中超': '', '日职联': '_943', '日职乙': '_808', '韩K联': '_313',
-                   '美职业': '_165', '巴西甲': ''}
-
-    league_season = {'英超': '2019-2020', '西甲': '2019-2020', '意甲': '2019-2020', '德甲': '2019-2020', '法甲': '2019-2020',
-                    '苏超': '2019-2020', '葡超': '2019-2020', '挪超': '2019', '瑞典超': '2019',  '荷甲': '2019-2020','俄超':'2019-2020',
-                    '英冠': '2019-2020', '德乙':'2019-2020',
-                    '中超': '2019', '日职联': '2019', '日职乙': '2019', '韩K联': '2019',
-                    '美职业': '2019', '巴西甲': '2019'}
-
-
     # 将不同年份url交给Scheduler
     def start_requests(self):
         hour = time.strftime('%H', time.localtime())
-        if hour <= '09':  #9点前下载前一天的比赛
+        if hour <= '08':  #9点前下载前一天的比赛
             yesterday = datetime.today() + timedelta(-1)
             time_stamp = yesterday.strftime('%Y%m%d')
         else:  #9点后下载当天的比赛
             time_stamp = time.strftime('%Y%m%d', time.localtime())  # 2019042509
 
-        base_url = 'http://www.win0168.com/football/Next_{}.htm'
+        base_url = 'http://bf.win007.com/football/Next_{}.htm'
         req_base = scrapy.Request(base_url.format(time_stamp), callback=self.my_parse)
         yield req_base
-
-
 
     # 表2 全部轮次的数据表
     def my_parse(self, response):
         #1. 下载每个轮赛已结束的比赛的结果
         time_stamp = time.strftime('%Y%m%d%H', time.localtime())  # 2019042509
         base_url = 'http://zq.win007.com/jsData/matchResult/{}/s{}{}.js?version={}'
-        for league in self.leagueId:
-            league_id = self.leagueId[league]
-            subleague_id = self.subleagueId[league]
-            season = self.league_season[league]
+        for league in leagueId:
+            league_id = leagueId[league]
+            subleague_id = subleagueId[league]
+            season = league_season[league]
             req_base = scrapy.Request(base_url.format(season, league_id, subleague_id, time_stamp), callback=self.get_past_match)
+            if season.find('-') == -1:
+                season = '{}-{}'.format(int(season), int(season) + 1)
             req_base.meta['err_id'] = '004'
             req_base.meta['league'] = league
             req_base.meta['season'] = season
@@ -76,15 +61,17 @@ class EcSpider(scrapy.Spider):
             eve_turn = ball_lunci_team[n]
             eve_turn_team = eve_turn.xpath("./td")
             league = eve_turn_team[0].xpath("./font/text()").extract()[0]
+            # league = eve_turn_team[0].xpath("./text()").extract()[0]
+            # 只预测常见的轮赛
+            if league not in leagueId.keys(): continue
             bs_time = eve_turn_team[1].xpath("./text()").extract()[0]
-            hometeam = eve_turn_team[3].xpath("./text()").extract()[0]
+            hometeam = eve_turn_team[3].xpath("./text()").extract()[-1]
             awayteam = eve_turn_team[5].xpath("./text()").extract()[0]
             id_str = eve_turn_team[7].xpath("./a/@onclick").extract()[0]
             pattern = re.compile(r'[(](.*?)[)]', re.S)
             bs_num_id = re.findall(pattern, id_str)[0]
 
-            # 只预测常见的轮赛
-            if league not in self.leagueId.keys(): continue
+
 
             #3 拼接每个比赛详细分析 url http://zq.win007.com/analysis/851859cn.htm
             url = 'http://zq.win007.com/analysis/{}cn.htm'.format(bs_num_id)
@@ -102,7 +89,7 @@ class EcSpider(scrapy.Spider):
             req.meta['bs_time'] = bs_time
             yield req
 
-            #4 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
+             #4 拼接每个比赛欧盘赔率 url http://1x2d.win007.com/1130517.js
             # # 2013-08-17 ,2014-5-12 老版页面  判断年份 保存版本
             # if item['bs_time'] < '2014-05-12 0:00':
             url = 'http://1x2d.win007.com/{}.js'.format(bs_num_id)
@@ -151,6 +138,8 @@ class EcSpider(scrapy.Spider):
             print('match' + bs_num_id + ' resquest az odds page failure！')
         elif err_id == '004':
             print('match' + bs_num_id + ' resquest past matchs page failure！')
+        elif err_id == '005':
+            print('match' + bs_num_id + ' resquest vs result page failure！')
 
 
     #获取已结束的比赛的结果
@@ -162,8 +151,8 @@ class EcSpider(scrapy.Spider):
         # 获取球队id_队名列表
         lis_all_team = self.team_data_id(response)
         # 获取每年所有队伍数据 38轮
-        # ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
-        ball_lunci_team = re.findall('jh\[\"R_\d{1,2}\"\] = \[(\[\d{3,}.*?\])\];', response.text)
+        ball_lunci_team = re.findall('\[(\[\d{3,}.*?\])\];', response.text)
+        # ball_lunci_team = re.findall('jh\[\"R_\d{1,2}\"\] = \[(\[\d{3,}.*?\])\];', response.text)
         num = 0
         # 根据38轮遍历每一小轮
         for eve_turn in ball_lunci_team:
@@ -197,13 +186,14 @@ class EcSpider(scrapy.Spider):
                 elif (w_goal-r_goal) < 0: FTRR = 'A'
                 else: FTRR = 'D'
 
+                bs_num_id = lis[0]
                 res_score = lis[6].replace('-', '--')  # 比分的形式是"1--2"
                 item['league'] = league
                 item['season'] = season
                 item['lunci'] = num
                 item['FTR'] = FTR
                 item['FTRR'] = FTRR
-                bs_num_id = lis[0]
+
                 item['bs_time'] = lis[3]  # 2014-05-04 23:00 <class 'str'>
                 item['bs_num_id'] = bs_num_id
                 item['hometeam'] = lis_all_team[index_num_h + 1]
@@ -216,6 +206,30 @@ class EcSpider(scrapy.Spider):
                 item['sizes_balls_a'] = lis[12]
                 item['sizes_balls_h'] = lis[13]
                 item['half_score'] = lis[7]
+
+                ## 判断是否已经存在了比赛的数据
+                query = self.db.is_exist(bs_num_id)
+                if query == 'Exist':
+                    # if bs_num_id == 1831391:
+                    #     print(season, league, bs_num_id, item['hometeam'], item['awayteam'], " 比赛数据已存在！")
+                    continue
+                else:
+                    print(season, league, bs_num_id, item['hometeam'], item['awayteam'], " 补下已比赛数据！")
+                    url = 'http://zq.win007.com/analysis/{}cn.htm'.format(bs_num_id)
+                    # url = 'http://zq.win007.com/analysis/404801cn.htm'
+                    req = scrapy.Request(url, callback=self.bs_vs_data, errback=self.bs_resquest_err)
+                    req.meta['err_id'] = '005'
+                    req.meta['league'] = league
+                    req.meta['season'] = season
+                    req.meta['bs_num_id'] = bs_num_id
+                    req.meta['lunci'] = num
+                    req.meta['FTR'] = FTR
+                    req.meta['res_score'] = res_score
+                    req.meta['hometeam'] = item['hometeam']
+                    req.meta['awayteam'] = item['awayteam']
+                    req.meta['bs_time'] = item['bs_time']
+                    yield req
+
                 yield item
 
 
@@ -232,7 +246,7 @@ class EcSpider(scrapy.Spider):
         bs_time = response.meta['bs_time']
         res_score = response.meta['res_score']
 
-        print(season, bs_num_id, response.status)
+        print(season, league, hometeam, awayteam, response.status)
 
         # 实例化Item
         item = Match_Score_New_Item()
@@ -460,6 +474,61 @@ class EcSpider(scrapy.Spider):
             for i in range(5 - len(TFormPtsStr)): TFormPtsStr = TFormPtsStr + 'D'  # 如果对赛不够5场,以平局补够5场
 
         return TFormPtsStr
+
+
+
+    def bs_vs_data(self, response):
+        league = response.meta['league']
+        season = response.meta['season']
+        bs_num_id = response.meta['bs_num_id']
+        hometeam = response.meta['hometeam']
+        awayteam = response.meta['awayteam']
+        FTR = response.meta['FTR']
+        bs_time = response.meta['bs_time']
+        res_score = response.meta['res_score']
+        lunci = response.meta['lunci']
+
+        print(season, league, hometeam, awayteam, response.status)
+
+        # 实例化Item
+        item = Match_Sample_New_Item()
+        if season > '2013-2014':
+        # if season >= '2014':
+            table_num = 1
+        else: table_num = 0
+
+        # tables = response.xpath("//*[text()='联赛积分排名']/../../../..//table")
+        # if not tables:
+        #     tables = response.xpath("//*[text()='联赛积分排名']/../../../../..//table")
+        # home_table = tables[table_num].xpath('./tr/td/text()').extract()
+        # away_table = tables[table_num+1].xpath('./tr/td/text()').extract()
+        # if not home_table: #如果没有数据，是因为table的位置不对应
+        #     home_table = tables[table_num+1].xpath('./tr/td/text()').extract()
+        #     away_table = tables[table_num+2].xpath('./tr/td/text()').extract()
+
+        VTFormPtsStr = self.get_VS_result(response, 'v_data.*?\[(\[.*?\])\];')
+        HTFormPtsStr = self.get_VS_result(response, 'h_data.*?\[(\[.*?\])\];')
+        ATFormPtsStr = self.get_VS_result(response, 'a_data.*?\[(\[.*?\])\];')
+
+        item['league'] = league
+        item['season'] = season
+        item['bs_num_id'] = bs_num_id
+        item['lunci'] = lunci
+        item['hometeam'] = hometeam
+        item['awayteam'] = awayteam
+        item['bs_time'] = bs_time
+        item['FTR'] = FTR
+        item['res_score'] = res_score
+        item['VTFormPtsStr'] = VTFormPtsStr
+        item['HTFormPtsStr'] = HTFormPtsStr
+        item['ATFormPtsStr'] = ATFormPtsStr
+        yield item
+
+
+
+
+
+
 
 
 
